@@ -695,7 +695,8 @@
 
   function buildSummary(){
     var today = todayStr();
-    var mine = tasks.filter(function(t){ return t.assignee === meName; });
+    var scopeLabel = scope === "all" ? "全員" : scope;
+    var mine = tasks.filter(function(t){ return scope === "all" || t.assignee === scope; });
     var doneToday = mine.filter(function(t){ return t.status === "done" && t.doneAt === today; });
     var remaining = mine.filter(function(t){ return t.status !== "done" && t.status !== "cancelled"; });
     remaining.sort(function(a,b){
@@ -706,7 +707,7 @@
       return 0;
     });
     var lines = [];
-    lines.push("【本日完了】（" + meName + "）");
+    lines.push("【本日完了】（" + scopeLabel + "）");
     if(doneToday.length === 0) lines.push("・（本日完了した項目なし）");
     doneToday.forEach(function(t){ lines.push("・" + t.title); });
     lines.push("");
