@@ -266,10 +266,7 @@
         </div>
       </div>
       <div class="identity">
-        <div class="scope-toggle" role="group" aria-label="表示範囲">
-          <button type="button" id="scopeMine">自分</button>
-          <button type="button" id="scopeAll" class="active">全員</button>
-        </div>
+        <div class="scope-toggle" id="scopeToggle" role="group" aria-label="表示範囲"></div>
         <div class="me-pill">
           <img id="meAvatar" src="" alt="">
           <span id="meName">-</span>
@@ -508,8 +505,31 @@
     showToast("登録しました：" + title + (due ? "（期限 " + toMD(due) + "）" : ""));
   });
 
-  $("scopeMine").addEventListener("click", function(){ scope = "mine"; this.classList.add("active"); $("scopeAll").classList.remove("active"); renderBoard(); });
-  $("scopeAll").addEventListener("click", function(){ scope = "all"; this.classList.add("active"); $("scopeMine").classList.remove("active"); renderBoard(); });
+  // ---------- 表示範囲タブ（担当者ごと＋全員） ----------
+  function renderScopeTabs(){
+    var el = $("scopeToggle");
+    var names = [];
+    if(meName) names.push(meName);
+    tasks.forEach(function(t){
+      if(t.assignee && names.indexOf(t.assignee) === -1) names.push(t.assignee);
+    });
+    if(scope !== "all" && names.indexOf(scope) === -1) names.push(scope);
+    el.innerHTML = "";
+    names.forEach(function(name){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = name;
+      if(scope === name) b.classList.add("active");
+      b.addEventListener("click", function(){ scope = name; renderScopeTabs(); renderBoard(); });
+      el.appendChild(b);
+    });
+    var allBtn = document.createElement("button");
+    allBtn.type = "button";
+    allBtn.textContent = "全員";
+    if(scope === "all") allBtn.classList.add("active");
+    allBtn.addEventListener("click", function(){ scope = "all"; renderScopeTabs(); renderBoard(); });
+    el.appendChild(allBtn);
+  }
 
   // ---------- board rendering ----------
   function renderBoard(){
@@ -517,7 +537,7 @@
     board.innerHTML = "";
     var isToday = (viewDate === todayStr());
     var visible = tasks.filter(function(t){
-      if(scope === "mine" && t.assignee !== meName) return false;
+      if(scope !== "all" && t.assignee !== scope) return false;
       return bucketForDate(t, viewDate) !== null;
     });
 
@@ -803,12 +823,14 @@
     renderHeader();
     setInterval(renderHeader, 60000);
     buildTagRow();
+    renderScopeTabs();
     $("board").innerHTML = "<div class='board-loading'>読み込み中…</div>";
 
     rtdb.ref("tasks").on("value", function(snap){
       var val = snap.val() || {};
       tasks = Object.keys(val).map(function(id){ return Object.assign({}, val[id], { id: id }); });
       $("dbStatus").hidden = true;
+      renderScopeTabs();
       renderBoard();
     }, function(err){
       $("dbStatus").hidden = false;
