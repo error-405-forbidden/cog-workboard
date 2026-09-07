@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COG Workboard - 朝夕ボード</title>
+<meta name="robots" content="noindex, nofollow">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --paper:#F7F4EC; --surface:#FFFFFF; --surface-2:#FBF9F3; --ink:#2A2620; --sub:#7A7368; --line:#E4DFD1;
+    --accent:#1E6F64; --accent-ink:#0F433C; --accent-soft:#DCEEE9;
+    --amber:#B96A1E; --amber-soft:#F5E4CE; --rose:#A63F3B; --rose-soft:#F5DEDB;
+    --green:#2F6B41; --green-soft:#DEEBDF; --slate:#5C6A72; --slate-soft:#E3E9EA;
+    --shadow: 0 1px 2px rgba(42,38,32,0.06), 0 6px 20px -8px rgba(42,38,32,0.18);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#15170F; --surface:#1D2016; --surface-2:#20241A; --ink:#ECE7D9; --sub:#A79E8C; --line:#333527;
+      --accent:#57B3A4; --accent-ink:#BFE8DE; --accent-soft:#1E3A34;
+      --amber:#E0954E; --amber-soft:#3A2C18; --rose:#E17872; --rose-soft:#3A211F;
+      --green:#7FC490; --green-soft:#1F3524; --slate:#9FB0B6; --slate-soft:#232B2C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#15170F; --surface:#1D2016; --surface-2:#20241A; --ink:#ECE7D9; --sub:#A79E8C; --line:#333527;
+    --accent:#57B3A4; --accent-ink:#BFE8DE; --accent-soft:#1E3A34;
+    --amber:#E0954E; --amber-soft:#3A2C18; --rose:#E17872; --rose-soft:#3A211F;
+    --green:#7FC490; --green-soft:#1F3524; --slate:#9FB0B6; --slate-soft:#232B2C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+  }
+  *{ box-sizing:border-box; }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; line-height:1.6;
+  }
+  img{ max-width:100%; }
+  [hidden]{ display:none !important; }
+
+  /* ---------- login ---------- */
+  .login-screen{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:var(--paper);
+  }
+  .login-box{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+    padding:40px 36px; width:100%; max-width:360px; text-align:center;
+  }
+  .login-box h1{ margin:0 0 6px; font-size:22px; font-weight:900; }
+  .login-box p{ margin:0 0 26px; font-size:12.5px; color:var(--sub); }
+  .google-btn{
+    width:100%; padding:12px; background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; gap:10px; box-shadow:var(--shadow);
+  }
+  .google-btn:hover{ border-color:var(--accent); }
+  .login-error{
+    margin-top:16px; font-size:12.5px; color:var(--rose); background:var(--rose-soft); border-radius:8px;
+    padding:10px; display:none;
+  }
+
+  .wrap{ max-width:1280px; margin:0 auto; padding:20px 20px 56px; }
+
+  header.top{
+    position:sticky; top:0; z-index:20; background:var(--paper); padding:16px 0 14px;
+    border-bottom:1px solid var(--line); margin-bottom:18px;
+  }
+  .top-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .brand{ display:flex; flex-direction:column; gap:6px; }
+  h1{ margin:0; font-size:22px; font-weight:900; letter-spacing:0.01em; text-wrap:balance; }
+  .date-line{
+    font-family:"JetBrains Mono",monospace; font-size:12.5px; color:var(--sub);
+    display:flex; align-items:center; gap:10px; font-variant-numeric:tabular-nums;
+  }
+  .cycle{ display:flex; align-items:center; gap:6px; }
+  .cycle-track{
+    position:relative; width:110px; height:6px; border-radius:99px;
+    background:linear-gradient(90deg, var(--amber-soft) 0%, var(--amber-soft) 33%, var(--accent-soft) 33%, var(--accent-soft) 66%, var(--slate-soft) 66%, var(--slate-soft) 100%);
+  }
+  .cycle-dot{
+    position:absolute; top:50%; width:10px; height:10px; border-radius:50%; background:var(--ink);
+    transform:translate(-50%,-50%); box-shadow:0 0 0 2px var(--paper);
+  }
+  .cycle-label{ color:var(--sub); }
+
+  .identity{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .me-pill{
+    display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line);
+    border-radius:99px; padding:6px 14px 6px 6px; box-shadow:var(--shadow);
+  }
+  .me-pill img{ width:26px; height:26px; border-radius:50%; }
+  .me-pill span{ font-size:12.5px; font-weight:700; }
+  .scope-toggle{ display:flex; background:var(--surface-2); border:1px solid var(--line); border-radius:99px; padding:3px; }
+  .scope-toggle button{
+    border:none; background:transparent; padding:6px 14px; border-radius:99px; font:inherit; font-size:12.5px;
+    font-weight:700; color:var(--sub); cursor:pointer;
+  }
+  .scope-toggle button.active{ background:var(--accent); color:#fff; }
+  .top-actions{ display:flex; gap:8px; }
+  .btn{
+    border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; padding:8px 14px;
+    font:inherit; font-size:13px; font-weight:700; cursor:pointer; box-shadow:var(--shadow);
+  }
+  .btn:hover{ border-color:var(--accent); }
+  .btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  .btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.ghost{ box-shadow:none; }
+
+  .quickadd{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px 16px; margin-bottom:20px;
+  }
+  .qa-row{ display:flex; gap:10px; align-items:center; }
+  .qa-row input[type="text"]{
+    flex:1; border:1px solid var(--line); border-radius:8px; padding:11px 14px; font:inherit; font-size:14.5px;
+    background:var(--surface-2); color:var(--ink);
+  }
+  .qa-more-toggle{
+    background:none; border:none; color:var(--sub); font-size:12.5px; font-weight:700; cursor:pointer;
+    padding:4px 2px; text-decoration:underline; text-underline-offset:3px;
+  }
+  .qa-detail{ display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .qa-detail.open{ display:block; }
+  .qa-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  .qa-field label{ display:block; font-size:11.5px; color:var(--sub); font-weight:700; margin-bottom:4px; letter-spacing:0.03em; text-transform:uppercase; }
+  .qa-field textarea, .qa-field input, .qa-field select{
+    width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; font-size:13.5px;
+    background:var(--surface-2); color:var(--ink);
+  }
+  .qa-field textarea{ resize:vertical; min-height:44px; }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    border:1px solid var(--line); background:var(--surface-2); color:var(--sub); border-radius:99px;
+    padding:5px 12px; font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  .chip.on{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-ink); }
+  .type-toggle{ display:flex; gap:8px; }
+  .type-toggle button{
+    flex:1; border:1px solid var(--line); background:var(--surface-2); color:var(--sub); border-radius:8px;
+    padding:8px; font:inherit; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .type-toggle button.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .board{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(238px,1fr); gap:14px; overflow-x:auto; padding-bottom:12px; }
+  .col{ display:flex; flex-direction:column; min-width:0; }
+  .col-head{ display:flex; align-items:center; justify-content:space-between; padding:0 4px 10px; border-bottom:2px solid var(--col-c, var(--line)); margin-bottom:10px; }
+  .col-head h2{ font-size:13.5px; margin:0; font-weight:800; letter-spacing:0.02em; }
+  .col-count{ font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--sub); background:var(--surface-2); border-radius:99px; padding:1px 8px; }
+  .col-body{ display:flex; flex-direction:column; gap:10px; min-height:60px; border-radius:8px; transition:background-color .12s; }
+  .col-body.drag-over{ background:var(--accent-soft); outline:2px dashed var(--accent); outline-offset:-2px; }
+  .col-empty{ color:var(--sub); font-size:12px; padding:10px 4px; }
+
+  .card{ background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--col-c,var(--line)); border-radius:8px; padding:11px 12px; box-shadow:var(--shadow); cursor:grab; }
+  .card:active{ cursor:grabbing; }
+  .card.stale{ background:var(--rose-soft); }
+  .card-title{ font-size:14px; font-weight:700; text-wrap:balance; }
+  .card-content{ font-size:12.5px; color:var(--sub); margin-top:3px; white-space:pre-wrap; }
+  .card-meta{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; align-items:center; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--slate-soft); color:var(--slate); }
+  .tag.routine{ background:var(--accent-soft); color:var(--accent-ink); }
+  .badge-due{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .badge-due.overdue{ color:var(--rose); font-weight:700; }
+  .badge-carry{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; background:var(--rose-soft); color:var(--rose); border-radius:6px; padding:1px 7px; }
+  .waiting-for{ font-size:11.5px; color:var(--amber); font-weight:600; margin-top:5px; }
+  .assignee{ margin-left:auto; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .assignee img{ width:100%; height:100%; object-fit:cover; }
+
+  .edit{ display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
+  .edit.open{ display:block; }
+  .edit-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .edit label{ display:block; font-size:10.5px; color:var(--sub); font-weight:700; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.03em; }
+  .edit select, .edit input, .edit textarea{ width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px; font:inherit; font-size:12.5px; background:var(--surface-2); color:var(--ink); }
+  .edit textarea{ min-height:38px; resize:vertical; }
+  .logs{ margin:8px 0; display:flex; flex-direction:column; gap:4px; max-height:110px; overflow-y:auto; }
+  .log-line{ font-size:11.5px; color:var(--sub); }
+  .log-line b{ font-family:"JetBrains Mono",monospace; color:var(--ink); font-weight:600; margin-right:6px; }
+  .edit-actions{ display:flex; gap:8px; margin-top:8px; }
+  .edit-actions .btn{ padding:6px 12px; font-size:12px; box-shadow:none; }
+  .btn.danger{ color:var(--rose); border-color:var(--rose); }
+
+  .drawer{ display:none; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; margin-bottom:20px; }
+  .drawer.open{ display:block; }
+  .drawer h2{ margin:0 0 4px; font-size:15px; font-weight:800; }
+  .drawer p.hint{ margin:0 0 12px; font-size:12.5px; color:var(--sub); }
+  .drawer textarea{ width:100%; min-height:220px; border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-family:"JetBrains Mono",monospace; font-size:12.5px; line-height:1.75; color:var(--ink); background:var(--surface-2); white-space:pre; }
+  .drawer-actions{ display:flex; gap:8px; margin-top:10px; }
+
+  .db-status{ display:flex; align-items:flex-start; gap:12px; background:var(--rose-soft); color:var(--rose); border:1px solid var(--rose); border-radius:var(--radius); padding:14px 16px; margin-bottom:18px; }
+  .db-status .db-status-body{ flex:1; }
+  .db-status .db-status-title{ font-size:14px; font-weight:800; margin-bottom:4px; }
+  .db-status .db-status-detail{ font-size:12.5px; line-height:1.6; }
+  .db-status button{ flex-shrink:0; background:var(--rose); color:#fff; border:none; border-radius:8px; padding:8px 16px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  .board-loading{ color:var(--sub); font-size:13px; padding:20px 4px; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper);
+    padding:8px 18px; border-radius:99px; font-size:12.5px; font-weight:700; box-shadow:var(--shadow);
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .toast.show{ opacity:1; }
+
+  footer.legend{ display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:11.5px; color:var(--sub); }
+  footer.legend span{ display:inline-flex; align-items:center; gap:5px; }
+  footer.legend i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>朝夕ボード</h1>
+    <p>COG Workboard / 社内メンバー専用</p>
+    <button class="google-btn" id="googleLoginBtn">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="18" height="18">
+      Googleでログイン
+    </button>
+    <div id="loginError" class="login-error"></div>
+  </div>
+</div>
+
+<div id="appRoot" class="wrap" hidden>
+
+  <header class="top">
+    <div class="top-row">
+      <div class="brand">
+        <h1>朝夕ボード</h1>
+        <div class="date-line">
+          <span id="todayLabel">-</span>
+          <span class="cycle">
+            <span class="cycle-track"><span class="cycle-dot" id="cycleDot"></span></span>
+            <span class="cycle-label" id="cycleLabel">-</span>
+          </span>
+        </div>
+      </div>
+      <div class="identity">
+        <div class="scope-toggle" role="group" aria-label="表示範囲">
+          <button type="button" id="scopeMine" class="active">自分</button>
+          <button type="button" id="scopeAll">全員</button>
+        </div>
+        <div class="me-pill">
+          <img id="meAvatar" src="" alt="">
+          <span id="meName">-</span>
+        </div>
+        <div class="top-actions">
+          <button type="button" class="btn primary" id="openSummary">終礼まとめ</button>
+          <button type="button" class="btn" id="logoutBtn">ログアウト</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="db-status" id="dbStatus" hidden>
+    <div class="db-status-body">
+      <div class="db-status-title">データベースに接続できていません</div>
+      <div class="db-status-detail">下のボタンで再読み込みしてください。改善しない場合は管理者に連絡してください。</div>
+    </div>
+    <button type="button" id="dbRetry">再読み込み</button>
+  </div>
+
+  <div class="quickadd">
+    <form id="qaForm">
+      <div class="qa-row">
+        <input type="text" id="qaTitle" placeholder="やること・依頼内容を入力（例：ムイレイさん店舗ページ公開、期限は明日）" autocomplete="off" required>
+        <button type="submit" class="btn primary">追加</button>
+      </div>
+      <button type="button" class="qa-more-toggle" id="qaMoreToggle">＋ 期限・案件・担当者などを指定する</button>
+      <div class="qa-detail" id="qaDetail">
+        <div class="qa-grid">
+          <div class="qa-field" style="grid-column:1/-1;">
+            <label>内容メモ（空欄ならタイトルと同じ扱い）</label>
+            <textarea id="qaContent" placeholder="補足があれば"></textarea>
+          </div>
+          <div class="qa-field"><label>期限</label><input type="date" id="qaDue"></div>
+          <div class="qa-field"><label>担当者（空欄なら自分）</label><input type="text" id="qaAssignee" placeholder="担当者名"></div>
+          <div class="qa-field" style="grid-column:1/-1;">
+            <label>種類</label>
+            <div class="type-toggle">
+              <button type="button" data-type="single" class="on">単発タスク</button>
+              <button type="button" data-type="routine">ルーティン業務</button>
+            </div>
+          </div>
+          <div class="qa-field" style="grid-column:1/-1;">
+            <label>案件タグ（複数選択可）</label>
+            <div class="chip-row" id="qaTagRow"></div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="drawer" id="summaryDrawer">
+    <h2>終礼まとめ</h2>
+    <p class="hint">ログイン中のあなたを担当者として、本日完了した項目と、まだ残っている項目をChatwork用の箇条書きにまとめます。</p>
+    <textarea id="summaryText" readonly></textarea>
+    <div class="drawer-actions">
+      <button type="button" class="btn primary" id="copySummary">コピー</button>
+      <button type="button" class="btn ghost" id="closeSummary">閉じる</button>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <footer class="legend">
+    <span><i style="background:var(--slate)"></i>未着手</span>
+    <span><i style="background:var(--accent)"></i>進行中</span>
+    <span><i style="background:var(--amber)"></i>保留（待ち）</span>
+    <span><i style="background:var(--green)"></i>完了</span>
+    <span><i style="background:var(--rose)"></i>中止・3日以上停滞</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ===== Firebase設定 =====
+  var firebaseConfig = {
+    apiKey: "AIzaSyCWisNJZn0hktFP3pXof-DYau0LnnjQScQ",
+    authDomain: "cog-workboard.firebaseapp.com",
+    databaseURL: "https://cog-workboard-default-rtdb.firebaseio.com",
+    projectId: "cog-workboard",
+    storageBucket: "cog-workboard.firebasestorage.app",
+    messagingSenderId: "779252971360",
+    appId: "1:779252971360:web:7cf0a3a3bdca7b565e5005"
+  };
+  var ALLOWED_EMAILS = ["cogweb39@gmail.com", "k.w.t.f.05@gmail.com"];
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var rtdb = firebase.database();
+
+  var COLUMNS = [
+    { key:"todo",     label:"未着手",       color:"var(--slate)"  },
+    { key:"doing",    label:"進行中",       color:"var(--accent)" },
+    { key:"waiting",  label:"保留（待ち）", color:"var(--amber)"  },
+    { key:"done",     label:"完了",         color:"var(--green)"  },
+    { key:"cancelled",label:"中止",         color:"var(--rose)"   }
+  ];
+  var PRESET_TAGS = ["ジムセレ","買取サファリ","金融メディアサイト群","自社サイト","共通/インフラ","その他"];
+
+  var tasks = [];
+  var scope = "mine";
+  var qaSelectedTags = [];
+  var qaType = "single";
+  var openCardId = null;
+  var meName = "";
+  var meEmail = "";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var pad = function(n){ return n < 10 ? "0" + n : "" + n; };
+  var todayStr = function(){ var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); };
+  var toMD = function(iso){ if(!iso) return ""; var p = iso.split("-"); return parseInt(p[1],10) + "/" + parseInt(p[2],10); };
+  var dayDiff = function(fromIso, toIso){ var a = new Date(fromIso + "T00:00:00"); var b = new Date(toIso + "T00:00:00"); return Math.round((b - a) / 86400000); };
+  var initials = function(name){ if(!name) return "?"; return name.trim().slice(0,1); };
+  var esc = function(s){ return (s == null ? "" : String(s)).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); };
+  var showToast = function(msg){ var t = $("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); }, 1800); };
+
+  // ---------- ログイン ----------
+  $("googleLoginBtn").addEventListener("click", function(){
+    var provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function(err){
+      $("loginError").textContent = "ログインに失敗しました: " + err.message;
+      $("loginError").style.display = "block";
+    });
+  });
+  $("logoutBtn").addEventListener("click", function(){
+    if(confirm("ログアウトしますか？")) auth.signOut();
+  });
+
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      if(ALLOWED_EMAILS.indexOf(user.email) === -1){
+        $("loginError").textContent = "このアカウント（" + user.email + "）はアクセス許可がありません。";
+        $("loginError").style.display = "block";
+        auth.signOut();
+        return;
+      }
+      meName = user.displayName || user.email;
+      meEmail = user.email;
+      $("meName").textContent = meName;
+      $("meAvatar").src = user.photoURL || "";
+      $("loginScreen").hidden = true;
+      $("appRoot").hidden = false;
+      boot();
+    } else {
+      $("loginScreen").hidden = false;
+      $("appRoot").hidden = true;
+    }
+  });
+
+  // ---------- header: date + cycle ----------
+  function renderHeader(){
+    var d = new Date();
+    var wd = ["日","月","火","水","木","金","土"][d.getDay()];
+    $("todayLabel").textContent = d.getFullYear() + "/" + pad(d.getMonth()+1) + "/" + pad(d.getDate()) + "(" + wd + ")";
+    var h = d.getHours() + d.getMinutes()/60;
+    var pct, label;
+    if(h < 12){ pct = (h/12)*33; label = "朝礼前後"; }
+    else if(h < 17){ pct = 33 + ((h-12)/5)*33; label = "日中"; }
+    else { pct = 66 + Math.min(1,(h-17)/6)*34; label = "終礼前後"; }
+    $("cycleDot").style.left = pct + "%";
+    $("cycleLabel").textContent = label;
+  }
+
+  // ---------- quick add ----------
+  function buildTagRow(){
+    var row = $("qaTagRow");
+    row.innerHTML = "";
+    PRESET_TAGS.forEach(function(tag){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = tag;
+      b.addEventListener("click", function(){
+        var idx = qaSelectedTags.indexOf(tag);
+        if(idx === -1){ qaSelectedTags.push(tag); b.classList.add("on"); }
+        else { qaSelectedTags.splice(idx,1); b.classList.remove("on"); }
+      });
+      row.appendChild(b);
+    });
+  }
+
+  $("qaMoreToggle").addEventListener("click", function(){
+    var d = $("qaDetail");
+    d.classList.toggle("open");
+    this.textContent = d.classList.contains("open") ? "－ 詳細を閉じる" : "＋ 期限・案件・担当者などを指定する";
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".type-toggle button"), function(btn){
+    btn.addEventListener("click", function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".type-toggle button"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      qaType = btn.getAttribute("data-type");
+    });
+  });
+
+  $("qaForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var title = $("qaTitle").value.trim();
+    if(!title) return;
+    var content = $("qaContent").value.trim() || title;
+    var due = $("qaDue").value || null;
+    var assignee = $("qaAssignee").value.trim() || meName;
+    var today = todayStr();
+    var data = {
+      title: title, content: content, status: "todo", waitingFor: "", cancelReason: "",
+      assignee: assignee, projectTags: qaSelectedTags.slice(), taskType: qaType, dueDate: due,
+      createdAt: today, updatedAt: today, doneAt: null, logs: []
+    };
+    rtdb.ref("tasks").push(data).catch(function(err){ showToast("登録に失敗しました: " + err.message); });
+    $("qaForm").reset();
+    qaSelectedTags = [];
+    Array.prototype.forEach.call(document.querySelectorAll("#qaTagRow .chip"), function(c){ c.classList.remove("on"); });
+    qaType = "single";
+    Array.prototype.forEach.call(document.querySelectorAll(".type-toggle button"), function(b){ b.classList.remove("on"); });
+    document.querySelector(".type-toggle button[data-type='single']").classList.add("on");
+    showToast("登録しました：" + title + (due ? "（期限 " + toMD(due) + "）" : ""));
+  });
+
+  $("scopeMine").addEventListener("click", function(){ scope = "mine"; this.classList.add("active"); $("scopeAll").classList.remove("active"); renderBoard(); });
+  $("scopeAll").addEventListener("click", function(){ scope = "all"; this.classList.add("active"); $("scopeMine").classList.remove("active"); renderBoard(); });
+
+  // ---------- board rendering ----------
+  function renderBoard(){
+    var board = $("board");
+    board.innerHTML = "";
+    var visible = tasks.filter(function(t){
+      if(scope === "mine") return t.assignee === meName;
+      return true;
+    });
+
+    COLUMNS.forEach(function(col){
+      var list = visible.filter(function(t){ return t.status === col.key; });
+      list.sort(function(a,b){
+        if(a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+        if(a.dueDate) return -1;
+        if(b.dueDate) return 1;
+        return (a.createdAt || "") < (b.createdAt || "") ? -1 : 1;
+      });
+
+      var colEl = document.createElement("div");
+      colEl.className = "col";
+      colEl.style.setProperty("--col-c", col.color);
+
+      var head = document.createElement("div");
+      head.className = "col-head";
+      head.innerHTML = "<h2>" + col.label + "</h2><span class='col-count'>" + list.length + "</span>";
+      colEl.appendChild(head);
+
+      var body = document.createElement("div");
+      body.className = "col-body";
+      if(list.length === 0){
+        var empty = document.createElement("div");
+        empty.className = "col-empty"; empty.textContent = "なし";
+        body.appendChild(empty);
+      } else {
+        list.forEach(function(t){
+          try{ body.appendChild(renderCard(t, col)); }
+          catch(e){ /* skip malformed doc */ }
+        });
+      }
+      wireDropZone(body, col);
+      colEl.appendChild(body);
+      board.appendChild(colEl);
+    });
+  }
+
+  function wireDropZone(body, col){
+    body.addEventListener("dragover", function(e){ e.preventDefault(); e.dataTransfer.dropEffect = "move"; body.classList.add("drag-over"); });
+    body.addEventListener("dragleave", function(e){ if(e.target === body) body.classList.remove("drag-over"); });
+    body.addEventListener("drop", function(e){
+      e.preventDefault();
+      body.classList.remove("drag-over");
+      var id = e.dataTransfer.getData("text/plain");
+      if(!id) return;
+      var moved = tasks.find(function(t){ return t.id === id; });
+      if(moved && moved.status === col.key) return;
+      var patch = { status: col.key, updatedAt: todayStr() };
+      patch.doneAt = (col.key === "done") ? todayStr() : null;
+      rtdb.ref("tasks/" + id).update(patch).catch(function(err){ showToast("移動に失敗: " + err.message); });
+    });
+  }
+
+  function renderCard(t, col){
+    var card = document.createElement("div");
+    var today = todayStr();
+    var carry = (t.status !== "done" && t.status !== "cancelled" && t.createdAt) ? dayDiff(t.createdAt, today) + 1 : 0;
+    var stale = carry >= 3;
+    card.className = "card" + (stale ? " stale" : "");
+    card.style.setProperty("--col-c", col.color);
+    card.draggable = true;
+
+    var overdue = (t.dueDate && t.status !== "done" && t.status !== "cancelled" && t.dueDate < today);
+
+    var html = "<div class='card-title'>" + esc(t.title) + "</div>";
+    if(t.content && t.content !== t.title) html += "<div class='card-content'>" + esc(t.content) + "</div>";
+    html += "<div class='card-meta'>";
+    if(t.taskType === "routine") html += "<span class='tag routine'>定型</span>";
+    (t.projectTags || []).forEach(function(tag){ html += "<span class='tag'>" + esc(tag) + "</span>"; });
+    if(t.dueDate) html += "<span class='badge-due" + (overdue ? " overdue" : "") + "'>期限 " + toMD(t.dueDate) + "</span>";
+    if(carry >= 2) html += "<span class='badge-carry'>" + carry + "日目</span>";
+    html += "<span class='assignee' title='" + esc(t.assignee) + "'>" + esc(initials(t.assignee)) + "</span>";
+    html += "</div>";
+    if(t.status === "waiting" && t.waitingFor) html += "<div class='waiting-for'>⏳ " + esc(t.waitingFor) + "</div>";
+    if(t.status === "cancelled" && t.cancelReason) html += "<div class='waiting-for'>中止理由: " + esc(t.cancelReason) + "</div>";
+
+    html += "<div class='edit" + (openCardId === t.id ? " open" : "") + "' data-edit>";
+    html += "<div class='edit-row'>";
+    html += "<div><label>ステータス</label><select data-f='status'>" +
+      COLUMNS.map(function(c){ return "<option value='"+c.key+"'"+(t.status===c.key?" selected":"")+">"+c.label+"</option>"; }).join("") +
+      "</select></div>";
+    html += "<div><label>期限</label><input type='date' data-f='dueDate' value='" + (t.dueDate || "") + "'></div>";
+    html += "</div>";
+    html += "<div class='edit-row'>";
+    html += "<div><label>担当者</label><input type='text' data-f='assignee' value='" + esc(t.assignee) + "'></div>";
+    html += "<div><label>待ち先（保留の場合）</label><input type='text' data-f='waitingFor' value='" + esc(t.waitingFor || "") + "' placeholder='例: 村上さん返信待ち'></div>";
+    html += "</div>";
+    html += "<div><label>中止理由（中止の場合）</label><input type='text' data-f='cancelReason' value='" + esc(t.cancelReason || "") + "'></div>";
+    if(t.logs && t.logs.length){
+      html += "<div class='logs'>" + t.logs.map(function(l){ return "<div class='log-line'><b>" + toMD(l.date) + "</b>" + esc(l.text) + "</div>"; }).join("") + "</div>";
+    }
+    html += "<div><label>ひとことログを追加</label><textarea data-newlog placeholder='進捗や補足メモ'></textarea></div>";
+    html += "<div class='edit-actions'>";
+    html += "<button type='button' class='btn primary' data-save>保存</button>";
+    html += "<button type='button' class='btn' data-addlog>ログ追記</button>";
+    html += "<button type='button' class='btn danger' data-delete>削除</button>";
+    html += "</div></div>";
+
+    card.innerHTML = html;
+
+    card.addEventListener("dragstart", function(e){
+      e.dataTransfer.setData("text/plain", t.id);
+      e.dataTransfer.effectAllowed = "move";
+    });
+
+    card.addEventListener("click", function(e){
+      if(e.target.closest("[data-edit]")) return;
+      openCardId = (openCardId === t.id) ? null : t.id;
+      renderBoard();
+    });
+
+    var editEl = card.querySelector("[data-edit]");
+    editEl.addEventListener("click", function(e){ e.stopPropagation(); });
+
+    editEl.querySelector("[data-save]").addEventListener("click", function(){
+      var patch = {};
+      Array.prototype.forEach.call(editEl.querySelectorAll("[data-f]"), function(f){ patch[f.getAttribute("data-f")] = f.value; });
+      patch.updatedAt = todayStr();
+      if(patch.status === "done" && t.status !== "done") patch.doneAt = todayStr();
+      if(patch.status !== "done") patch.doneAt = null;
+      rtdb.ref("tasks/" + t.id).update(patch).catch(function(err){ showToast("更新に失敗: " + err.message); });
+    });
+
+    editEl.querySelector("[data-addlog]").addEventListener("click", function(){
+      var ta = editEl.querySelector("[data-newlog]");
+      var text = ta.value.trim();
+      if(!text) return;
+      var newLogs = (t.logs || []).concat([{ date: todayStr(), text: text }]);
+      rtdb.ref("tasks/" + t.id).update({ logs: newLogs, updatedAt: todayStr() }).then(function(){ ta.value = ""; })
+        .catch(function(err){ showToast("追記に失敗: " + err.message); });
+    });
+
+    editEl.querySelector("[data-delete]").addEventListener("click", function(){
+      if(!confirm("このタスクを削除しますか？")) return;
+      rtdb.ref("tasks/" + t.id).remove().catch(function(err){ showToast("削除に失敗: " + err.message); });
+    });
+
+    return card;
+  }
+
+  // ---------- summary drawer ----------
+  $("openSummary").addEventListener("click", function(){
+    buildSummary();
+    $("summaryDrawer").classList.add("open");
+    $("summaryDrawer").scrollIntoView({ behavior:"smooth", block:"start" });
+  });
+  $("closeSummary").addEventListener("click", function(){ $("summaryDrawer").classList.remove("open"); });
+  $("copySummary").addEventListener("click", function(){
+    var ta = $("summaryText"); ta.focus(); ta.select();
+    try{ navigator.clipboard.writeText(ta.value).then(function(){ showToast("コピーしました"); }); }
+    catch(err){ showToast("選択したのでそのままCtrl+Cでコピーできます"); }
+  });
+
+  function buildSummary(){
+    var today = todayStr();
+    var mine = tasks.filter(function(t){ return t.assignee === meName; });
+    var doneToday = mine.filter(function(t){ return t.status === "done" && t.doneAt === today; });
+    var remaining = mine.filter(function(t){ return t.status !== "done" && t.status !== "cancelled"; });
+    remaining.sort(function(a,b){
+      var wa = a.status === "waiting" ? 0 : 1;
+      var wb = b.status === "waiting" ? 0 : 1;
+      if(wa !== wb) return wa - wb;
+      if(a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+      return 0;
+    });
+    var lines = [];
+    lines.push("【本日完了】（" + meName + "）");
+    if(doneToday.length === 0) lines.push("・（本日完了した項目なし）");
+    doneToday.forEach(function(t){ lines.push("・" + t.title); });
+    lines.push("");
+    lines.push("【残タスク】");
+    if(remaining.length === 0) lines.push("・（残タスクなし）");
+    remaining.forEach(function(t){
+      var suffix = [];
+      if(t.dueDate) suffix.push("期限" + toMD(t.dueDate));
+      if(t.status === "waiting" && t.waitingFor) suffix.push(t.waitingFor + "待ち");
+      var carry = t.createdAt ? dayDiff(t.createdAt, today) + 1 : 0;
+      if(carry >= 2) suffix.push(carry + "日目");
+      lines.push("・" + t.title + (suffix.length ? "（" + suffix.join("・") + "）" : ""));
+    });
+    $("summaryText").value = lines.join("\n");
+  }
+
+  // ---------- boot / データ購読 ----------
+  var booted = false;
+  function boot(){
+    if(booted) return;
+    booted = true;
+    renderHeader();
+    setInterval(renderHeader, 60000);
+    buildTagRow();
+    $("board").innerHTML = "<div class='board-loading'>読み込み中…</div>";
+
+    rtdb.ref("tasks").on("value", function(snap){
+      var val = snap.val() || {};
+      tasks = Object.keys(val).map(function(id){ return Object.assign({}, val[id], { id: id }); });
+      $("dbStatus").hidden = true;
+      renderBoard();
+    }, function(err){
+      $("dbStatus").hidden = false;
+      showToast("読み込みエラー: " + err.message);
+    });
+  }
+
+  $("dbRetry").addEventListener("click", function(){ location.reload(); });
+})();
+</script>
+</body>
+</html>
