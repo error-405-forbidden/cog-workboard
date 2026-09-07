@@ -258,18 +258,17 @@
       <div class="brand">
         <h1>朝夕ボード</h1>
         <div class="date-line">
-          <span id="todayLabel">-</span>
+          <button type="button" class="date-toggle" id="dateToggle"><span id="todayLabel">-</span> ▾</button>
           <span class="cycle">
             <span class="cycle-track"><span class="cycle-dot" id="cycleDot"></span></span>
             <span class="cycle-label" id="cycleLabel">-</span>
           </span>
-          <button type="button" class="date-toggle" id="dateToggle">日付を選ぶ ▾</button>
         </div>
       </div>
       <div class="identity">
         <div class="scope-toggle" role="group" aria-label="表示範囲">
-          <button type="button" id="scopeMine" class="active">自分</button>
-          <button type="button" id="scopeAll">全員</button>
+          <button type="button" id="scopeMine">自分</button>
+          <button type="button" id="scopeAll" class="active">全員</button>
         </div>
         <div class="me-pill">
           <img id="meAvatar" src="" alt="">
@@ -390,7 +389,7 @@
   var PRESET_TAGS = ["ジムセレ","買取サファリ","金融メディアサイト群","自社サイト","共通/インフラ","その他"];
 
   var tasks = [];
-  var scope = "mine";
+  var scope = "all";
   var qaSelectedTags = [];
   var qaType = "single";
   var openCardId = null;
