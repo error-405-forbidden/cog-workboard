@@ -473,7 +473,12 @@
   function renderBoard(){
     var board = $("board");
     board.innerHTML = "";
+    var today = todayStr();
     var visible = tasks.filter(function(t){
+      if(t.status === "done" || t.status === "cancelled"){
+        var closedOn = t.doneAt || t.updatedAt;
+        if(closedOn !== today) return false; // 完了・中止は当日だけ表示、翌日以降は自動で隠す
+      }
       if(scope === "mine") return t.assignee === meName;
       return true;
     });
