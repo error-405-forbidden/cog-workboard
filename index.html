@@ -318,7 +318,7 @@
             <textarea id="qaContent" placeholder="補足があれば"></textarea>
           </div>
           <div class="qa-field"><label>期限</label><input type="date" id="qaDue"></div>
-          <div class="qa-field"><label>担当者（空欄なら自分）</label><input type="text" id="qaAssignee" placeholder="担当者名"></div>
+          <div class="qa-field"><label>担当者（他の人に頼む時だけ変更）</label><input type="text" id="qaAssignee" placeholder="担当者名"></div>
           <div class="qa-field" style="grid-column:1/-1;">
             <label>種類</label>
             <div class="type-toggle">
@@ -429,6 +429,8 @@
       meEmail = user.email;
       $("meName").textContent = meName;
       $("meAvatar").src = user.photoURL || "";
+      $("qaAssignee").value = meName;
+      $("qaAssignee").placeholder = meName;
       $("loginScreen").hidden = true;
       $("appRoot").hidden = false;
       boot();
@@ -497,6 +499,7 @@
     };
     rtdb.ref("tasks").push(data).catch(function(err){ showToast("登録に失敗しました: " + err.message); });
     $("qaForm").reset();
+    $("qaAssignee").value = meName;
     qaSelectedTags = [];
     Array.prototype.forEach.call(document.querySelectorAll("#qaTagRow .chip"), function(c){ c.classList.remove("on"); });
     qaType = "single";
