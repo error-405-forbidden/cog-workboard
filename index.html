@@ -194,6 +194,32 @@
   .drawer textarea{ width:100%; min-height:220px; border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-family:"JetBrains Mono",monospace; font-size:12.5px; line-height:1.75; color:var(--ink); background:var(--surface-2); white-space:pre; }
   .drawer-actions{ display:flex; gap:8px; margin-top:10px; }
 
+  .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .cal-nav h2{ margin:0; font-size:15px; font-weight:800; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-dow{ font-size:11px; color:var(--sub); text-align:center; font-weight:700; padding:4px 0; }
+  .cal-cell{
+    position:relative; aspect-ratio:1/1; min-height:44px; border:1px solid var(--line); border-radius:8px;
+    background:var(--surface); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; cursor:pointer; font-size:12px;
+  }
+  .cal-cell:hover{ border-color:var(--accent); }
+  .cal-cell.empty{ border-color:transparent; background:transparent; cursor:default; }
+  .cal-cell.today{ border-color:var(--accent); border-width:2px; }
+  .cal-cell.selected{ background:var(--accent-soft); border-color:var(--accent); }
+  .cal-daynum{ font-weight:700; font-family:"JetBrains Mono",monospace; }
+  .cal-dot-row{ display:flex; gap:3px; }
+  .cal-dot{ width:5px; height:5px; border-radius:50%; }
+  .cal-dot.done{ background:var(--green); }
+  .cal-dot.created{ background:var(--accent); }
+  .cal-detail{ margin-top:16px; padding-top:14px; border-top:1px dashed var(--line); }
+  .cal-detail h3{ font-size:13.5px; margin:0 0 12px; }
+  .cal-detail-group{ margin-bottom:14px; }
+  .cal-detail-group h4{ font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--sub); margin:0 0 6px; }
+  .cal-detail-item{ font-size:12.5px; padding:7px 10px; background:var(--surface-2); border-radius:6px; margin-bottom:4px; }
+  .cal-detail-item b{ font-weight:700; margin-right:6px; }
+  .cal-empty-note{ font-size:12px; color:var(--sub); }
+
   .db-status{ display:flex; align-items:flex-start; gap:12px; background:var(--rose-soft); color:var(--rose); border:1px solid var(--rose); border-radius:var(--radius); padding:14px 16px; margin-bottom:18px; }
   .db-status .db-status-body{ flex:1; }
   .db-status .db-status-title{ font-size:14px; font-weight:800; margin-bottom:4px; }
@@ -251,6 +277,7 @@
           <span id="meName">-</span>
         </div>
         <div class="top-actions">
+          <button type="button" class="btn" id="openHistory">履歴</button>
           <button type="button" class="btn primary" id="openSummary">終礼まとめ</button>
           <button type="button" class="btn" id="logoutBtn">ログアウト</button>
         </div>
@@ -304,6 +331,19 @@
     <div class="drawer-actions">
       <button type="button" class="btn primary" id="copySummary">コピー</button>
       <button type="button" class="btn ghost" id="closeSummary">閉じる</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="historyDrawer">
+    <div class="cal-nav">
+      <button type="button" class="btn ghost" id="calPrev">◀ 前の月</button>
+      <h2 id="calMonthLabel">-</h2>
+      <button type="button" class="btn ghost" id="calNext">次の月 ▶</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-detail" id="calDetail"></div>
+    <div class="drawer-actions">
+      <button type="button" class="btn ghost" id="closeHistory">閉じる</button>
     </div>
   </div>
 
@@ -663,6 +703,86 @@
       lines.push("・" + t.title + (suffix.length ? "（" + suffix.join("・") + "）" : ""));
     });
     $("summaryText").value = lines.join("\n");
+  }
+
+  // ---------- 履歴（カレンダー） ----------
+  var historyMonth = new Date();
+  var historySelected = todayStr();
+
+  $("openHistory").addEventListener("click", function(){
+    historyMonth = new Date();
+    historySelected = todayStr();
+    renderCalendar();
+    $("historyDrawer").classList.add("open");
+    $("historyDrawer").scrollIntoView({ behavior:"smooth", block:"start" });
+  });
+  $("closeHistory").addEventListener("click", function(){ $("historyDrawer").classList.remove("open"); });
+  $("calPrev").addEventListener("click", function(){ historyMonth.setMonth(historyMonth.getMonth() - 1); renderCalendar(); });
+  $("calNext").addEventListener("click", function(){ historyMonth.setMonth(historyMonth.getMonth() + 1); renderCalendar(); });
+
+  function dateToStr(y, m, d){ return y + "-" + pad(m + 1) + "-" + pad(d); }
+
+  function renderCalendar(){
+    var y = historyMonth.getFullYear(), m = historyMonth.getMonth();
+    $("calMonthLabel").textContent = y + "年" + (m + 1) + "月";
+    var firstDow = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var grid = $("calGrid");
+    grid.innerHTML = "";
+    ["日","月","火","水","木","金","土"].forEach(function(w){
+      var el = document.createElement("div"); el.className = "cal-dow"; el.textContent = w; grid.appendChild(el);
+    });
+    for(var i = 0; i < firstDow; i++){
+      var pad1 = document.createElement("div"); pad1.className = "cal-cell empty"; grid.appendChild(pad1);
+    }
+    for(var d = 1; d <= daysInMonth; d++){
+      var dateStr = dateToStr(y, m, d);
+      var doneCount = tasks.filter(function(t){ return t.doneAt === dateStr; }).length;
+      var createdCount = tasks.filter(function(t){ return t.createdAt === dateStr; }).length;
+      var logCount = tasks.reduce(function(acc, t){ return acc + (t.logs || []).filter(function(l){ return l.date === dateStr; }).length; }, 0);
+      var cell = document.createElement("div");
+      cell.className = "cal-cell" + (dateStr === todayStr() ? " today" : "") + (dateStr === historySelected ? " selected" : "");
+      var html = "<div class='cal-daynum'>" + d + "</div>";
+      var dots = "";
+      if(doneCount > 0) dots += "<span class='cal-dot done'></span>";
+      if(createdCount > 0 || logCount > 0) dots += "<span class='cal-dot created'></span>";
+      if(dots) html += "<div class='cal-dot-row'>" + dots + "</div>";
+      cell.innerHTML = html;
+      cell.addEventListener("click", (function(ds){ return function(){ historySelected = ds; renderCalendar(); }; })(dateStr));
+      grid.appendChild(cell);
+    }
+    renderDayDetail(historySelected);
+  }
+
+  function renderDayDetail(dateStr){
+    var box = $("calDetail");
+    var p = dateStr.split("-");
+    var wd = ["日","月","火","水","木","金","土"][new Date(dateStr + "T00:00:00").getDay()];
+    var label = parseInt(p[1],10) + "/" + parseInt(p[2],10) + "(" + wd + ")";
+    var doneList = tasks.filter(function(t){ return t.doneAt === dateStr; });
+    var createdList = tasks.filter(function(t){ return t.createdAt === dateStr; });
+    var logItems = [];
+    tasks.forEach(function(t){
+      (t.logs || []).forEach(function(l){ if(l.date === dateStr) logItems.push({ title: t.title, text: l.text }); });
+    });
+
+    var html = "<h3>" + label + "の記録</h3>";
+    html += "<div class='cal-detail-group'><h4>完了（" + doneList.length + "）</h4>";
+    html += doneList.length
+      ? doneList.map(function(t){ return "<div class='cal-detail-item'>" + esc(t.title) + "</div>"; }).join("")
+      : "<div class='cal-empty-note'>なし</div>";
+    html += "</div>";
+    html += "<div class='cal-detail-group'><h4>新規登録（" + createdList.length + "）</h4>";
+    html += createdList.length
+      ? createdList.map(function(t){ return "<div class='cal-detail-item'>" + esc(t.title) + "</div>"; }).join("")
+      : "<div class='cal-empty-note'>なし</div>";
+    html += "</div>";
+    html += "<div class='cal-detail-group'><h4>ログ更新（" + logItems.length + "）</h4>";
+    html += logItems.length
+      ? logItems.map(function(l){ return "<div class='cal-detail-item'><b>" + esc(l.title) + "</b>" + esc(l.text) + "</div>"; }).join("")
+      : "<div class='cal-empty-note'>なし</div>";
+    html += "</div>";
+    box.innerHTML = html;
   }
 
   // ---------- boot / データ購読 ----------
