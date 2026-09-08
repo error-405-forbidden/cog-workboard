@@ -45,9 +45,12 @@ dialog .sheet-foot{padding:10px 16px}
 .note-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .sort-control{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .sort-control select{font-size:14px;padding:7px 10px}
-/* Small pin marking a site memo added today — sits next to the date/author,
-   self-expires the next day instead of needing to be dismissed by hand. */
-.pin-badge{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:99px;white-space:nowrap}
+/* Small pin marking a site memo added today — sits next to the date/author (and,
+   in the project list, next to the project name) so a fresh addition is visible
+   without opening it. Self-expires the next day instead of needing to be
+   dismissed by hand. A plain colored dot + date, not an emoji. */
+.pin-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:2px 8px 2px 7px;border-radius:99px;white-space:nowrap;vertical-align:middle}
+.pin-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
 /* Edit/comment/delete triggers sit next to the name they act on, not in a
    separate row below the content — matches .note-actions button styling but
    inline, right-aligned, with no top margin of its own. */

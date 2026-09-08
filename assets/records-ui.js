@@ -157,7 +157,7 @@
       const created = W.createdDay(record.createdAt), recorded = created && created!==record.date ? '<p class="note-recorded">追記日：'+E(created)+'</p>' : '';
       // A small pin marks entries added today, so a fresh addition stands out at the
       // top of the newest-first list without needing a separate "NEW" label to manage.
-      const pin = created===W.dateStr() ? '<span class="pin-badge">📌【'+E(W.toMD(created))+'】</span>' : '';
+      const pin = W.pinBadge(record.createdAt);
       const headActions = editing ? '' : '<span class="row-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+composeTrigger('comment',record.id)+'</span>';
       const body = editing ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded;
       return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span>'+pin+headActions+'</div>'+body+thread('comment',record.id,order)+'</article>';

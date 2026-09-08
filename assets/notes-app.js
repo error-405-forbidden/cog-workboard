@@ -33,8 +33,11 @@
     const projects=[...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))];
     $('projectList').replaceChildren();$('projectSelect').replaceChildren();
     projects.forEach(tag=>{
-      const count=records.siteMemos.filter(n=>n.projectTag===tag).length;
-      const b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(tag===currentProject));b.innerHTML='<span class="project-name">'+E(W.labelTag(tag))+'</span><span class="project-count">'+(states.siteMemos==='ready'?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseProject(tag));$('projectList').append(b);
+      const entries=records.siteMemos.filter(n=>n.projectTag===tag);
+      const count=entries.length;
+      // Same pin as on the memo itself, so a fresh addition is visible from the project list without opening it.
+      const freshest=entries.reduce((latest,n)=>!latest||n.createdAt>latest?n.createdAt:latest,'');const pin=W.pinBadge(freshest);
+      const b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(tag===currentProject));b.innerHTML='<span class="project-name">'+E(W.labelTag(tag))+(pin?' '+pin:'')+'</span><span class="project-count">'+(states.siteMemos==='ready'?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseProject(tag));$('projectList').append(b);
       const opt=document.createElement('option');opt.value=tag;opt.textContent=W.labelTag(tag)+(states.siteMemos==='ready'?'（'+count+'件）':'');$('projectSelect').append(opt);
     });$('projectSelect').value=currentProject;
   }
