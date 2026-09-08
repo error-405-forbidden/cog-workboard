@@ -93,6 +93,14 @@
       catch (err) { errors.set(id, W.message(err)); }
       finally { deleting.delete(id); changed(); }
     }
+    async function removeMemo(id) {
+      if (!canWrite('siteMemos') || deleting.has(id)) return;
+      if (!arm.press(id)) return;
+      deleting.add(id); errors.delete(id); changed(true);
+      try { await options.db().doc('siteMemos/'+id).delete(); editors.delete(key('memo', id)); }
+      catch (err) { errors.set(id, W.message(err)); }
+      finally { deleting.delete(id); changed(); }
+    }
     function form(kind, id) {
       const item = editors.get(key(kind, id)); if (!item) return '';
       const definition = definitions[kind];
@@ -158,8 +166,9 @@
       // A small pin marks entries added today, so a fresh addition stands out at the
       // top of the newest-first list without needing a separate "NEW" label to manage.
       const pin = W.pinBadge(record.createdAt);
-      const headActions = editing ? '' : '<span class="row-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+composeTrigger('comment',record.id)+'</span>';
-      const body = editing ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded;
+      const headActions = editing ? '' : '<span class="row-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+button('delete','memo',record.id,arm.isArmed(record.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(record.id)||!canWrite('siteMemos'))+composeTrigger('comment',record.id)+'</span>';
+      const errorMsg = errors.has(record.id) ? '<div class="form-msg" role="alert">'+E(errors.get(record.id))+'</div>' : '';
+      const body = editing ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded+errorMsg;
       return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span>'+pin+headActions+'</div>'+body+thread('comment',record.id,order)+'</article>';
     }
     function orphanMemos(project) {
@@ -184,7 +193,7 @@
         else if (action==='compose') openComposer(kind,id);
         else if (action==='submit') void submit(kind,id);
         else if (action==='compose-cancel') { const item=composers.get(key(kind,id));if(item&&!item.busy){item.open=false;changed(true);} }
-        else if (action==='delete') { if (kind==='staff') void removeStaff(id); else void removeLog(id); }
+        else if (action==='delete') { if (kind==='staff') void removeStaff(id); else if (kind==='memo') void removeMemo(id); else void removeLog(id); }
         else if (action==='thread-more') expandThread(kind,id);
         else if (action==='text-more') expandText(kind,id);
         else if (action==='text-less') collapseText(kind,id);
@@ -192,7 +201,7 @@
       root.addEventListener('input',onInput); root.addEventListener('change',onInput); root.addEventListener('click',onClick);
       return () => { root.removeEventListener('input',onInput);root.removeEventListener('change',onInput);root.removeEventListener('click',onClick); };
     }
-    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,expandThread,expandText,collapseText,moreButton,composeTrigger,
+    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,removeMemo,expandThread,expandText,collapseText,moreButton,composeTrigger,
       hasEditor:(kind,id)=>editors.has(key(kind,id)),
       editingRecord:(kind,id)=>editors.get(key(kind,id))?.record,
       resetConfirmation:()=>arm.reset(),
