@@ -1,0 +1,43 @@
+/*
+ * Tighter spacing pass: reduce padding/margin/gap on the roomiest blocks
+ * so more content fits without scrolling. Load after dashboard.css.
+ * No layout structure, color, or JS changes — sizing only.
+ */
+.topbar{min-height:76px}
+.view-nav{margin-top:14px}
+.quickadd{margin-top:14px;padding:14px 18px}
+.qa-heading{margin-bottom:8px}
+.board-toolbar{margin:14px 0 10px}
+.board{gap:10px}
+.col-head{padding:10px 12px}
+.col-body{padding:8px;gap:8px}
+.card-main{padding:11px 12px 7px}
+.card-content{margin-top:5px}
+.card-dates{margin-top:7px}
+.card-footer{padding:0 8px 6px 12px;min-height:38px}
+.notice{padding:12px 16px;margin-top:14px}
+.field-grid{gap:12px}
+.section-divider{margin:16px 0 14px}
+.logs{gap:10px;margin:10px 0 14px}
+.summary-stats{margin:10px 0}
+dialog .sheet-head{padding:14px 20px}
+dialog .sheet-body{padding:16px 20px}
+dialog .sheet-foot{padding:10px 16px}
+.login-box{padding:30px 28px}
+.notes-intro{margin:16px 0 12px}
+.notes-projects{padding:8px}
+.notes-layout{gap:16px;margin-top:16px}
+.note-compose{padding:16px}
+.note-compose textarea{min-height:110px}
+.note-history-head{margin:16px 0 12px}
+.project-note{padding:14px 16px}
+.staff-profile{padding:14px 16px}
+.staff-section+.staff-section{margin-top:12px;padding-top:12px}
+.staff-log-heading{margin:16px 0 10px}
+.staff-next{margin-bottom:12px}
+.comments{margin-top:10px;padding-top:10px}
+@media(max-width:640px){
+  .topbar{min-height:auto}
+  .quickadd{padding:12px}
+  dialog .sheet-body{padding:14px}
+}
