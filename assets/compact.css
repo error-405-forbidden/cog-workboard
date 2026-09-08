@@ -30,12 +30,21 @@ dialog .sheet-foot{padding:10px 16px}
 .note-compose{padding:16px}
 .note-compose textarea{min-height:110px}
 .note-history-head{margin:16px 0 12px}
-.project-note{padding:14px 16px}
+.project-note{padding:10px 14px}
+.project-note-head{margin-bottom:4px}
+.project-note-text{line-height:1.55}
 .staff-profile{padding:14px 16px}
 .staff-section+.staff-section{margin-top:12px;padding-top:12px}
 .staff-log-heading{margin:16px 0 10px}
 .staff-next{margin-bottom:12px}
-.comments{margin-top:10px;padding-top:10px}
+.comments{margin-top:6px;padding-top:6px}
+.comment{padding:8px 10px}
+.note-actions{margin-top:4px}
+/* The inline text-more/text-less toggle sits mid-sentence; render it like the
+   編集/コメントする links, not a full native button (was showing as a bulky
+   OS-styled button because it had no class of its own). */
+[data-wb-action="text-more"],[data-wb-action="text-less"]{background:transparent;border:0;color:var(--accent);font-size:13px;font-weight:700;padding:0;margin-left:4px;cursor:pointer;vertical-align:baseline}
+[data-wb-action="text-more"]:hover,[data-wb-action="text-less"]:hover{text-decoration:underline}
 @media(max-width:640px){
   .topbar{min-height:auto}
   .quickadd{padding:12px}
