@@ -1,0 +1,378 @@
+/*
+ * COG Workboard / dark control-room theme
+ * Load after the existing page CSS and records.css.
+ * Visual overrides only: no layout grid, data attributes or JS changes.
+ * No external fonts, images, animation library or continuously moving backdrop.
+ */
+
+:root {
+  color-scheme: dark;
+  --bg: #0a0e14;
+  --surface: #121c28;
+  --soft: #0e1621;
+  --ink: #e8f0fa;
+  --muted: #9aadc5;
+  --line: #2d4054;
+  --control-line: #526881;
+  --accent: #00e5c7;
+  --accent-hover: #60f4de;
+  --accent-soft: #10332f;
+  --on-accent: #061b19;
+  --blue: #81bbff;
+  --blue-soft: #142b42;
+  --violet: #b4a0ff;
+  --violet-soft: #27203f;
+  --amber: #f0c271;
+  --amber-soft: #302719;
+  --red: #ff9caa;
+  --red-soft: #35202b;
+  --green: #7ee1ac;
+  --green-soft: #153329;
+  --radius: 6px;
+  --shadow: 0 1px 0 rgb(181 215 255 / 5%), 0 8px 24px rgb(0 0 0 / 14%);
+  --panel: linear-gradient(135deg, rgb(22 35 50 / 96%), rgb(15 24 35 / 98%));
+  --ui-font: "Bahnschrift", "Aptos Display", "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --mono-font: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+html {
+  background: var(--bg);
+  scrollbar-color: #526881 var(--soft);
+}
+
+body,
+.login-screen {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgb(112 157 198 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(112 157 198 / 3%) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+body { color: var(--ink); }
+::selection { background: #17695f; color: #ffffff; }
+
+h1, h2, h3, .staff-name, .brand-caption {
+  font-family: var(--ui-font);
+  font-weight: 700;
+}
+
+h1, .staff-name { letter-spacing: .025em; }
+.brand-caption { color: var(--accent); letter-spacing: .13em; }
+
+.date, .counts strong, .col-count, .project-count, .age, .badge-carry,
+.card-dates, .log-count, .log-date, .task-meta, .summary-stat strong,
+.project-note-head time, .note-recorded, .staff-updated, input[type="date"] {
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Header and navigation. Existing placement and responsive breakpoints remain. */
+.topbar { border-color: var(--line); }
+.brandmark {
+  background: linear-gradient(145deg, #133e39, #10252e);
+  color: var(--accent);
+  border: 1px solid #278c83;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgb(161 255 234 / 10%);
+}
+.me-avatar { border: 1px solid var(--control-line); }
+.cycle-label, .shared-label, .view-badge {
+  color: #92eee0;
+  background: var(--accent-soft);
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px #23574d;
+}
+.view-nav { border-bottom-color: var(--line); }
+.view-nav button {
+  border-radius: 5px 5px 0 0;
+  border-bottom-width: 2px;
+  font-family: var(--ui-font);
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+.view-nav button[aria-pressed="true"] {
+  color: var(--accent);
+  background: linear-gradient(0deg, rgb(0 229 199 / 9%), transparent);
+  border-bottom-color: var(--accent);
+}
+.view-nav button:hover { background-color: #132b32; }
+.scope-toggle {
+  border-radius: 5px;
+  background: #0e1823;
+  border-color: var(--control-line);
+}
+.scope-toggle button { border-radius: 3px; }
+.scope-toggle button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px #2d6a5d;
+}
+.mobile-tabs { border-color: var(--line); }
+.mobile-tabs button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* Static glass treatment: translucent gradients and narrow highlights, no blur. */
+.quickadd, .note-compose, .notes-projects, .staff-profile, .login-box {
+  background: var(--panel);
+  border-color: var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), inset 0 1px 0 rgb(151 200 242 / 5%);
+}
+.quickadd { border-top-color: #28675e; }
+.login-box { border-top: 2px solid var(--accent); }
+.login-box p, .hint, .qa-heading span, .qa-owner, .note-guidance {
+  color: var(--muted);
+}
+
+/* Form boundaries remain visible on dark surfaces; native date controls stay dark. */
+input, select, textarea,
+.identity input, .qa-row input, .field input, .field select, .field textarea,
+.edit-form-row input, .edit-form textarea, .comment-form input, .comment-form textarea,
+.staff-name-input, .staff-next input[type="date"], .notes-mobile-picker select,
+.sort-control select, .date-nav input {
+  background: #0c141e;
+  color: var(--ink);
+  border-color: var(--control-line);
+  border-radius: 5px;
+  caret-color: var(--accent);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+input, select, textarea {
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+option { background: #121c28; color: var(--ink); }
+
+/* Primary controls use dark ink on cyan, including shared comment/edit controls. */
+.btn, .google-btn, .chip, .edit-form-foot button, .comment-form-foot button,
+.date-nav .step {
+  border-color: var(--control-line);
+  background: #142131;
+  color: var(--ink);
+  border-radius: 5px;
+  transition: border-color 180ms ease, background-color 180ms ease,
+    color 180ms ease, box-shadow 180ms ease;
+}
+.btn.primary, .edit-form-foot button.primary, .comment-form-foot button.primary {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%);
+}
+.btn.primary:hover:not(:disabled), .edit-form-foot button.primary:hover:not(:disabled),
+.comment-form-foot button.primary:hover:not(:disabled) {
+  color: var(--on-accent);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn.quiet { background: transparent; }
+.btn.danger { color: var(--red); }
+.btn.danger.armed { background: var(--red); color: #260c14; border-color: var(--red); }
+.chip[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.link-btn, .card-action, .note-actions button, .next-clear,
+.notes-projects-head button, .mobile-staff-add { color: var(--accent); }
+.card-action, .note-actions button { border-radius: 3px; }
+.next-clear { color: var(--muted); }
+
+/* Keyboard focus is independent of hover glow and does not rely on color alone. */
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Five status columns retain their dimensions, spacing and mobile switching. */
+.column {
+  background: rgb(13 21 31 / 94%);
+  border-color: var(--line);
+  border-radius: var(--radius);
+}
+.col-head {
+  background: #111e2b;
+  border-bottom-color: var(--line);
+  border-top-width: 2px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.col-head h3 { color: var(--ink); }
+.col-count {
+  background: #0a121d;
+  color: var(--ink);
+  border-color: #3b526a;
+  border-radius: 3px;
+}
+.card {
+  background: linear-gradient(130deg, #142333, #121d2a);
+  border-color: #354b63;
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgb(188 220 255 / 3%);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.card-title { color: var(--ink); }
+.card-main { border-radius: 0; }
+.card-main:hover { background: rgb(112 192 220 / 4%); }
+.card.stale { background: #292419; border-color: #826e3f; }
+.card.stale .age { color: var(--amber); border-color: #826e3f; }
+.card.opened { outline-color: var(--accent); }
+.card-content, .assignee, .cancel-note { color: var(--muted); }
+.tag {
+  background: #182638;
+  color: #b9cce1;
+  border-color: #3b526a;
+  border-radius: 3px;
+}
+.tag.routine {
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-color: #584384;
+}
+.age { color: #b9cce1; border-color: #3b526a; border-radius: 3px; }
+.due.overdue, .copy-help, .form-error, .form-msg { color: var(--red); }
+.due.today, .waiting-for { color: var(--amber); }
+.board-state, .note-empty {
+  background: rgb(13 21 31 / 96%);
+  border-color: #3b526a;
+  border-radius: var(--radius);
+}
+.empty-mark { color: #6c819b; }
+
+/* Identical project/staff treatment in the main and shared pages. */
+.project-button {
+  color: #c4d3e5;
+  border-radius: 4px;
+  transition: color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+.project-button[aria-pressed="true"], .project-button[aria-pressed="true"]:hover {
+  color: var(--accent);
+  background: linear-gradient(90deg, #10352f, #11212c);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.project-count { color: #afc3da; }
+.note-history { border-left-color: #354965; }
+.project-note {
+  background: var(--panel);
+  border-color: #354b63;
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgb(151 200 242 / 4%);
+}
+.project-note::before {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+.project-note-head time { color: #cce6ff; }
+.project-note-text, .comment-text { color: var(--ink); }
+.comments { border-color: var(--line); }
+.comment {
+  background: #101a28;
+  border-radius: 4px;
+  box-shadow: inset 2px 0 0 #405a78;
+}
+.comment-head strong { color: #cce6ff; }
+.staff-section-label { color: #a9bbd2; }
+.staff-section + .staff-section { border-color: var(--line); }
+.staff-next {
+  background: #201d32;
+  border-radius: 5px;
+  box-shadow: inset 2px 0 0 #9f84ff;
+}
+.staff-next label { color: #c8b8ff; }
+.staff-next .saved-flag { color: var(--green); }
+.staff-log-heading { color: #b5c9e2; }
+
+/* Dialogs are stable solid surfaces; no full-screen blur or moving overlays. */
+dialog, dialog.sheet {
+  background: #101923;
+  color: var(--ink);
+  border-color: var(--line);
+  border-radius: 6px 0 0 6px;
+  box-shadow: -12px 0 32px rgb(0 0 0 / 24%);
+}
+dialog::backdrop { background: rgb(2 7 13 / 76%); }
+.sheet-head { background: #152432; border-bottom-color: #31505b; }
+.sheet-foot { background: #111e2b; border-top-color: var(--line); }
+.summary-stat {
+  background: #10272b;
+  border-color: #2d5c60;
+  border-radius: 5px;
+}
+.summary-stat strong { color: var(--accent); }
+.summary-text { background: #0c141e; }
+.section-divider { background: var(--line); }
+.notice, .inline-notice { background: var(--amber-soft); color: var(--amber); border-radius: 5px; }
+.notice.error, .status.error, .notes-status.error, .login-error {
+  background: var(--red-soft);
+  color: var(--red);
+  border-color: #855366;
+}
+.status, .notes-status { background: #131f2d; color: var(--muted); border-radius: 5px; }
+.toast {
+  background: #142d31;
+  color: var(--ink);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 20%);
+}
+
+/* Only the six-pixel connection light pulses continuously. */
+.connection.ready { color: #8ce8d9; }
+.connection.ready i {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgb(0 229 199 / 32%);
+  animation: connection-pulse 2.6s ease-in-out infinite;
+}
+.connection.error { color: var(--red); }
+.connection.error i { background: var(--red); animation: none; }
+@keyframes connection-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .48; } }
+
+/* Hover effects only on devices that actually have a pointer. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled), .google-btn:hover:not(:disabled), .chip:hover:not(:disabled),
+  .date-nav .step:hover:not(:disabled), .edit-form-foot button:hover:not(:disabled),
+  .comment-form-foot button:hover:not(:disabled) {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgb(0 229 199 / 12%), 0 0 12px rgb(0 229 199 / 7%);
+  }
+  .card:hover { border-color: #68afbf; box-shadow: 0 0 0 1px rgb(104 175 191 / 10%); }
+  .card.stale:hover { border-color: var(--amber); }
+  .card-action:hover, .note-actions button:hover { background: #163932; }
+}
+
+/* A short entry fade on tab containers, never on every live-updated card. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 801px) {
+  #tasksView:not([hidden]), #notesView:not([hidden]), #staffView:not([hidden]) {
+    animation: view-arrive 180ms ease-out;
+  }
+}
+@keyframes view-arrive { from { opacity: .65; } to { opacity: 1; } }
+
+@media (max-width: 800px) {
+  body, .login-screen { background-image: none; }
+  .connection.ready i { animation: none; }
+  .quickadd, .note-compose, .notes-projects, .staff-profile, .project-note { box-shadow: none; }
+}
+@media (max-width: 640px) {
+  dialog.sheet { border-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  body, .login-screen, .card, .project-note { background: Canvas; }
+  button, input, select, textarea { forced-color-adjust: auto; }
+  button:focus-visible, a:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible { outline: 2px solid Highlight; }
+}
