@@ -199,7 +199,17 @@ function renderCommentThread(memoId,refPath){
  var html='<div class="comments">';
  html+=list.map(function(c){
   var day=noteCreatedDay(c.createdAt);
-  return '<div class="comment"><div class="comment-head"><strong>'+esc(c.author)+'</strong><span>'+esc(day)+'</span></div><div class="comment-text">'+esc(c.text)+'</div></div>';
+  if(refPath==='staffNotes'&&staffLogEditingId===c.id){
+   var ed=staffLogEditDraft;
+   return '<div class="comment"><div class="edit-form">'
+    +'<input type="text" data-role="log-e-author" placeholder="お名前" value="'+esc(ed.author||'')+'">'
+    +'<textarea data-role="log-e-text">'+esc(ed.text||'')+'</textarea>'
+    +(ed.msg?'<div class="form-msg">'+esc(ed.msg)+'</div>':'')
+    +'<div class="edit-form-foot"><button type="button" data-action="log-e-cancel">キャンセル</button><button type="button" class="primary" data-action="log-e-save" data-id="'+esc(c.id)+'">保存</button></div>'
+    +'</div></div>';
+  }
+  var actions=refPath==='staffNotes'?('<div class="note-actions"><button type="button" data-action="log-edit-open" data-id="'+esc(c.id)+'">編集</button><button type="button" data-action="log-delete" data-id="'+esc(c.id)+'">'+(staffLogDeleteArmedId===c.id?'本当に削除？もう一度クリック':'削除')+'</button></div>'):'';
+  return '<div class="comment"><div class="comment-head"><strong>'+esc(c.author)+'</strong><span>'+esc(day)+'</span></div><div class="comment-text">'+esc(c.text)+'</div>'+actions+'</div>';
  }).join('');
  var loaded=refPath==='staffNotes'?staffNotesHasData:commentsHasData;
  if(!loaded&&!list.length){html+='<div style="font-size:12px;color:var(--muted)">読み込み中…</div>';}
@@ -265,7 +275,29 @@ function render(){document.getElementById('projectHeading').textContent=labelTag
 var staff=[],staffNotes=[],currentStaffId=null,staffHasData=false,staffNotesHasData=false;
 var staffEditing=false,staffEditDraft={};
 var openStaffNoteId=null,staffNoteDrafts={};
+var staffLogEditingId=null,staffLogEditDraft={};
+var staffLogDeleteArmedId=null,staffLogDeleteTimer=null;
 function staffNotesFor(staffId){var list=staffNotes.filter(function(c){return c.staffId===staffId;});list.sort(function(a,b){return a.createdAt.localeCompare(b.createdAt);});return list;}
+function startStaffLogEdit(c){staffLogEditingId=c.id;staffLogEditDraft={text:c.text,author:c.author,msg:''};renderStaff();}
+function cancelStaffLogEdit(){staffLogEditingId=null;staffLogEditDraft={};renderStaff();}
+function saveStaffLogEdit(id){
+ var d=staffLogEditDraft;
+ if(!d.text||!d.text.trim()){d.msg='内容を入力してください。';renderStaff();return;}
+ rtdb.ref('staffNotes/'+id).update({text:d.text.trim(),author:(d.author||'').trim()||'匿名'}).then(function(){
+  staffLogEditingId=null;staffLogEditDraft={};renderStaff();
+ }).catch(function(err){
+  d.msg='保存できませんでした。('+(err&&err.message||'')+')';renderStaff();
+ });
+}
+function handleStaffLogDelete(id){
+ if(staffLogDeleteArmedId!==id){
+  staffLogDeleteArmedId=id;clearTimeout(staffLogDeleteTimer);
+  staffLogDeleteTimer=setTimeout(function(){staffLogDeleteArmedId=null;renderStaff();},4000);
+  renderStaff();return;
+ }
+ clearTimeout(staffLogDeleteTimer);staffLogDeleteArmedId=null;
+ rtdb.ref('staffNotes/'+id).remove().then(function(){renderStaff();});
+}
 function renderStaffList(){
  var listEl=document.getElementById('staffList');listEl.innerHTML='';
  var selectEl=document.getElementById('staffSelect');selectEl.innerHTML='';
@@ -356,6 +388,12 @@ function bindStaffEvents(){
  var nextInput=document.getElementById('staffNextDate');
  if(nextInput)nextInput.addEventListener('change',function(){saveStaffNextDate(nextInput.dataset.id,nextInput.value);});
  el.querySelectorAll('[data-action=s-next-clear]').forEach(function(b){b.addEventListener('click',function(){saveStaffNextDate(b.dataset.id,'');});});
+ el.querySelectorAll('[data-action=log-edit-open]').forEach(function(b){b.addEventListener('click',function(){var c=staffNotes.find(function(x){return x.id===b.dataset.id;});if(c)startStaffLogEdit(c);});});
+ el.querySelectorAll('[data-action=log-e-cancel]').forEach(function(b){b.addEventListener('click',cancelStaffLogEdit);});
+ el.querySelectorAll('[data-action=log-e-save]').forEach(function(b){b.addEventListener('click',function(){saveStaffLogEdit(b.dataset.id);});});
+ el.querySelectorAll('[data-role=log-e-text]').forEach(function(t){t.addEventListener('input',function(){staffLogEditDraft.text=t.value;});});
+ el.querySelectorAll('[data-role=log-e-author]').forEach(function(t){t.addEventListener('input',function(){staffLogEditDraft.author=t.value;});});
+ el.querySelectorAll('[data-action=log-delete]').forEach(function(b){b.addEventListener('click',function(){handleStaffLogDelete(b.dataset.id);});});
 }
 function saveStaffNextDate(id,value){
  rtdb.ref('staffProfiles/'+id).update({nextRequestDate:value||null}).then(function(){
