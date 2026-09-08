@@ -34,7 +34,7 @@ function errorAt(id,message){$(id).textContent=message||'';$(id).hidden=!message
 const labelTag=W.labelTag;
 function renderTags(id,selected,onChange){$(id).replaceChildren();[...new Set(TAGS.concat(selected))].forEach(tag=>{const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=labelTag(tag);b.setAttribute('aria-pressed',String(selected.includes(tag)));b.addEventListener('click',()=>{const n=selected.indexOf(tag);if(n<0)selected.push(tag);else selected.splice(n,1);b.setAttribute('aria-pressed',String(selected.includes(tag)));if(onChange)onChange();});$(id).append(b);});}
 function renderDate(){$('todayLabel').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date());$('todayLabel').dateTime=dateStr();const hour=new Date().getHours();$('cycleLabel').textContent=hour<12?'朝礼前後':hour<17?'日中':'終礼前後';}
-function syncControls(){$('qaSubmit').disabled=!ready||qaBusy||!me;$('openSummary').disabled=!ready||!me;const missing=editId&&!tasks.some(t=>t.id===editId);$('editSave').disabled=!ready||editBusy||missing;$('addLog').disabled=!ready||editBusy||missing;$('deleteTask').disabled=!ready||editBusy||missing;$('clearSamples').disabled=!ready||samplesBusy;$('refreshSummary').disabled=!ready;$('copySummary').disabled=!ready;syncNoteControls();}
+function syncControls(){$('qaSubmit').disabled=!ready||qaBusy||!me;$('openSummary').disabled=!ready||!me;const missing=editId&&!tasks.some(t=>t.id===editId);$('editSave').disabled=!ready||editBusy||missing;$('addLog').disabled=!ready||editBusy||missing;$('deleteTask').disabled=!ready||editBusy||missing;$('clearSamples').disabled=!ready||samplesBusy;$('refreshSummary').disabled=!ready;$('copySummary').disabled=!ready;syncNoteControls();if(typeof staffStatus==='function')staffStatus();}
 function renderIdentity(){$('nameNotice').hidden=!!me;$('qaOwner').textContent=me?'担当：'+me+'（変更は詳細から）':'名前を設定すると登録できます';$('qaAssignee').placeholder=me?'空欄なら '+me:'空欄ならあなた';$('noteAuthor').textContent=me?'記入者：'+me:'画面上部で名前を設定してください';syncControls();}
 $('meInput').value=me;
 function saveName(){const value=$('meInput').value.trim();if(!value){toast('名前を入力してください');$('meInput').focus();return;}me=value;try{localStorage.setItem('wb_me',me);toast('「'+me+'」として保存しました');}catch(e){toast('名前を設定しました。この環境では次回の再入力が必要です');}renderIdentity();renderBoard();}
@@ -174,8 +174,9 @@ function resetNotesUI(){if(notesUnbind)notesUnbind();if(notesUI)notesUI.dispose(
 function getNoteProjects(){return [...new Set(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag),[noteProject]).map(canonicalProject))];}
 function projectNotes(project,order){return W.sortMemos(siteNotes.filter(n=>n.projectTag===canonicalProject(project)),order);}
 function syncNoteControls(){$('noteSubmit').disabled=!notesReady||noteBusy||!me;$('noteText').disabled=noteBusy;$('noteDate').disabled=noteBusy;$('notesProjectSelect').disabled=noteBusy;$('notesProjects').querySelectorAll('button').forEach(b=>b.disabled=noteBusy);$('noteSubmit').textContent=noteBusy?'保存中…':'この案件に追記';}
-function showView(notes){$('tasksView').hidden=notes;$('notesView').hidden=!notes;$('showTasks').setAttribute('aria-pressed',String(!notes));$('showNotes').setAttribute('aria-pressed',String(notes));if(notes)renderNotes();}
-$('showTasks').addEventListener('click',()=>showView(false));$('showNotes').addEventListener('click',()=>showView(true));
+let currentView='tasks';
+function showView(view){currentView=view;$('tasksView').hidden=view!=='tasks';$('notesView').hidden=view!=='notes';$('staffView').hidden=view!=='staff';$('showTasks').setAttribute('aria-pressed',String(view==='tasks'));$('showNotes').setAttribute('aria-pressed',String(view==='notes'));$('showStaff').setAttribute('aria-pressed',String(view==='staff'));if(view==='notes')renderNotes();else if(view==='staff')renderStaff();}
+$('showTasks').addEventListener('click',()=>showView('tasks'));$('showNotes').addEventListener('click',()=>showView('notes'));$('showStaff').addEventListener('click',()=>showView('staff'));
 function saveNoteDraft(){noteDrafts.set(noteProject,{text:$('noteText').value,date:$('noteDate').value});}
 function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
 $('notesProjectSelect').addEventListener('change',e=>chooseNoteProject(e.target.value));$('noteText').addEventListener('input',saveNoteDraft);$('noteDate').addEventListener('input',saveNoteDraft);$('noteSort').addEventListener('change',renderNoteHistory);
@@ -203,6 +204,59 @@ $('noteForm').addEventListener('submit',async e=>{
  catch(err){errorAt('noteError','追記できませんでした。入力内容は残っています。接続を確認してもう一度追記してください。');}
  finally{noteBusy=false;syncNoteControls();$('noteText').focus();}
 });
+
+// ---------- 外注さん（案件のサイトメモとは別枠。1人=1プロフィール＋ログ） ----------
+const staffCollections=['staffProfiles','staffNotes'];
+let staffRecords=Object.fromEntries(staffCollections.map(k=>[k,[]]));
+let staffStates=Object.fromEntries(staffCollections.map(k=>[k,'loading']));
+let staffDisposers=[],staffDateTimers=new Map(),staffDateState=new Map();
+let currentStaffId=null,staffAdding=false,staffGeneration=0;
+let staffUI=null,staffUnbind=null;
+function canWriteStaff(){return !!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email);}
+function resetStaffUI(){if(staffUnbind)staffUnbind();if(staffUI)staffUI.dispose();staffUI=W.createRecordsUI({db:()=>fsdb,records:key=>staffRecords[key],loaded:key=>staffStates[key]==='ready',error:key=>staffStates[key]==='error',canWrite:key=>canWriteStaff()&&staffStates[key]==='ready',author:()=>me,render:force=>renderStaff(force)});staffUnbind=staffUI.bind($('staffDetail'));}
+function staffStatus(){const error=staffCollections.some(k=>staffStates[k]==='error'),allReady=staffCollections.every(k=>staffStates[k]==='ready');$('staffStatus').hidden=allReady&&!error;$('staffStatus').className='notes-status'+(error?' error':'');$('staffStatusText').textContent=error?'読み込めませんでした。時間をおいて再度開いてください。':'読み込み中…';$('staffAdd').disabled=!allReady||staffAdding||!me;$('staffAddMobile').disabled=$('staffAdd').disabled;}
+function chooseStaff(id){currentStaffId=id;staffUI.resetConfirmation();renderStaff(true);}
+function renderStaffList(){const list=staffRecords.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'));$('staffList').replaceChildren();$('staffSelect').replaceChildren();list.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(p.id===currentStaffId));b.innerHTML='<span class="project-name">'+esc(p.name||'（名前未設定）')+'</span>';b.addEventListener('click',()=>chooseStaff(p.id));$('staffList').append(b);const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name||'（名前未設定）';$('staffSelect').append(opt);});if(currentStaffId)$('staffSelect').value=currentStaffId;}
+$('staffSelect').addEventListener('change',e=>chooseStaff(e.target.value));
+async function addStaff(){
+ if(staffAdding||staffStates.staffProfiles!=='ready'||!me){if(!me)$('meInput').focus();return;}
+ const session=staffGeneration;staffAdding=true;staffStatus();
+ try{const data={name:'新しい外注さん',profile:'',currentWork:'',updatedAt:new Date().toISOString()};const ref=await fsdb.collection('staffProfiles').add(data);if(session!==staffGeneration)return;currentStaffId=ref.id;if(!staffRecords.staffProfiles.some(p=>p.id===ref.id))staffRecords.staffProfiles.push(W.normalizeStaff({id:ref.id,data:()=>data}));staffUI.startEdit('staff',ref.id);renderStaff(true);}
+ catch(err){if(session===staffGeneration)toast(W.message(err));}
+ finally{if(session===staffGeneration){staffAdding=false;staffStatus();}}
+}
+$('staffAdd').addEventListener('click',addStaff);$('staffAddMobile').addEventListener('click',addStaff);
+function renderStaff(force=false){
+ let p=staffRecords.staffProfiles.find(p=>p.id===currentStaffId);
+ if(!p&&currentStaffId)p=staffUI.editingRecord('staff',currentStaffId);
+ if(!p){p=staffRecords.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'))[0];currentStaffId=p?p.id:null;}
+ renderStaffList();
+ if(!p){W.replaceContent($('staffDetail'),'<div class="note-empty">'+(staffStates.staffProfiles==='ready'?'<strong>まだ外注さんが登録されていません</strong><p>「＋」から追加してください。</p>':'読み込み中です…')+'</div>',!force);return;}
+ const present=staffRecords.staffProfiles.some(r=>r.id===p.id),next=staffDateState.get(p.id)||{},disabled=!canWriteStaff()||staffStates.staffProfiles!=='ready'||next.busy||!present;
+ const nextRow='<div class="staff-next"><label for="staffNextDate">次回依頼日</label><input type="date" id="staffNextDate" value="'+esc(next.busy?next.value:p.nextRequestDate||'')+'" data-id="'+esc(p.id)+'"'+(disabled?' disabled':'')+'><button type="button" class="next-clear" data-next-clear="'+esc(p.id)+'"'+(disabled?' disabled':'')+'>クリア</button><span class="saved-flag"'+(next.saved?'':' hidden')+'>保存しました</span>'+(next.error?'<span class="form-msg" role="alert">'+esc(next.error)+'</span>':'')+'</div>';
+ const updated=p.updatedAt?W.createdDay(p.updatedAt):'';
+ const body=staffUI.hasEditor('staff',p.id)?'<div class="staff-profile">'+staffUI.form('staff',p.id)+'</div>':'<div class="staff-profile"><div class="staff-name">'+esc(p.name||'（名前未設定）')+'</div><div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+esc(p.profile||'（未入力）')+'</p></div><div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+esc(p.currentWork||'（未入力）')+'</p></div>'+(updated?'<p class="staff-updated">最終更新：'+esc(updated)+'</p>':'')+'<div class="note-actions"><button type="button" data-wb-action="edit" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()?' disabled':'')+'>編集</button></div></div>';
+ W.replaceContent($('staffDetail'),nextRow+body+'<div class="staff-log-heading">ログ</div>'+staffUI.thread('staffnote',p.id),!force);
+}
+async function saveStaffNextDate(id,value){
+ const p=staffRecords.staffProfiles.find(p=>p.id===id);if(!p||staffStates.staffProfiles!=='ready'||staffDateState.get(id)?.busy)return;
+ const session=staffGeneration,item={busy:true,value,error:'',saved:false};staffDateState.set(id,item);clearTimeout(staffDateTimers.get(id));renderStaff(true);
+ try{await fsdb.doc('staffProfiles/'+id).updateChecked({nextRequestDate:value||null},{nextRequestDate:p._raw.nextRequestDate});if(session!==staffGeneration)return;item.saved=true;staffDateTimers.set(id,setTimeout(()=>{item.saved=false;staffDateTimers.delete(id);if(currentStaffId===id)renderStaff();},2000));}
+ catch(err){if(session===staffGeneration)item.error=W.message(err);}
+ finally{if(session===staffGeneration){item.busy=false;renderStaff(true);}}
+}
+$('staffDetail').addEventListener('change',e=>{if(e.target.id==='staffNextDate')void saveStaffNextDate(e.target.dataset.id,e.target.value);});
+$('staffDetail').addEventListener('click',e=>{const b=e.target.closest('[data-next-clear]');if(b&&!b.disabled)void saveStaffNextDate(b.dataset.nextClear,'');});
+function stopStaffData(){staffGeneration++;staffDisposers.splice(0).forEach(stop=>stop());staffDateTimers.forEach(clearTimeout);staffDateTimers.clear();staffDateState.clear();staffAdding=false;}
+function connectStaff(){
+ stopStaffData();const session=staffGeneration;
+ const normalizers={staffProfiles:W.normalizeStaff,staffNotes:doc=>W.normalizeComment(doc,'staffId')};
+ staffCollections.forEach(key=>{
+  staffStates[key]='loading';let timer=setTimeout(()=>{if(session===staffGeneration){staffStates[key]='error';staffStatus();}},12000);staffDisposers.push(()=>clearTimeout(timer));
+  staffDisposers.push(fsdb.collection(key).onSnapshot(snap=>{if(session!==staffGeneration)return;clearTimeout(timer);staffRecords[key]=snap.docs.map(normalizers[key]);staffStates[key]='ready';staffStatus();if(currentView==='staff')renderStaff();},()=>{if(session!==staffGeneration)return;clearTimeout(timer);staffStates[key]='error';staffStatus();if(currentView==='staff')renderStaff();}));
+ });staffStatus();
+}
+resetStaffUI();staffStatus();
 
 function connectionState(state){ready=state==='ready';$('connection').className='connection '+state;$('connection').querySelector('span').textContent=ready?'接続済み':state==='error'?'接続エラー':'接続中';$('dbStatus').hidden=state!=='error';syncControls();}
 function showDbError(message){connectionState('error');$('dbErrorDetail').textContent=message;$('board').setAttribute('aria-busy','false');if(!hasData)$('board').innerHTML='<div class="board-state"><strong>接続後にタスクが表示されます</strong><p>上の案内を確認して、再接続してください。</p></div>';else renderBoard();}
@@ -260,14 +314,16 @@ const stopAuth=auth.onAuthStateChanged(function(user){
     $('loginScreen').hidden=true;
     $('appRoot').hidden=false;
     resetNotesUI();renderIdentity();
-    boot();
+    boot();resetStaffUI();connectStaff();
   } else {
     cleanupData();$('loginScreen').hidden=false;
     $('appRoot').hidden=true;
   }
 });
-function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();syncControls();}
-window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();deleteArm.dispose();samplesArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
+function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();syncControls();
+ stopStaffData();staffRecords={staffProfiles:[],staffNotes:[]};staffStates={staffProfiles:'loading',staffNotes:'loading'};currentStaffId=null;if(staffUI)staffUI.dispose();$('staffDetail').replaceChildren();$('staffList').replaceChildren();
+}
+window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(staffUnbind)staffUnbind();deleteArm.dispose();samplesArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 let lastDay=dateStr();const dayTimer=setInterval(()=>{renderDate();const today=dateStr();if(lastDay!==today){if(boardDate===lastDay){boardDate=today;$('boardDate').value=boardDate;}lastDay=today;renderBoard();}},60000);
 })();

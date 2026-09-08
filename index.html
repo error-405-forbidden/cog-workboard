@@ -33,7 +33,7 @@
 <div class="notice" id="nameNotice" hidden><div><strong>最初に、あなたの名前を設定してください</strong><p>登録時の担当者、終礼まとめの対象、サイトメモの記入者に使います。ほかのメンバーと同じ表記にそろえてください。</p></div><button type="button" class="btn" id="focusName">名前を入力</button></div>
 <div class="notice error" id="dbStatus" role="alert" hidden><div><strong>タスクを読み込めませんでした</strong><p id="dbErrorDetail">接続を確認して、再接続してください。入力中の内容はそのまま残っています。</p></div><button type="button" class="btn" id="dbRetry">再接続</button></div>
 <main>
-<nav class="view-nav" aria-label="表示する画面"><button type="button" id="showTasks" aria-pressed="true" aria-controls="tasksView">タスクボード</button><button type="button" id="showNotes" aria-pressed="false" aria-controls="notesView">サイトメモ</button></nav>
+<nav class="view-nav" aria-label="表示する画面"><button type="button" id="showTasks" aria-pressed="true" aria-controls="tasksView">タスクボード</button><button type="button" id="showNotes" aria-pressed="false" aria-controls="notesView">サイトメモ</button><button type="button" id="showStaff" aria-pressed="false" aria-controls="staffView">外注さん</button></nav>
 <div id="tasksView">
 <section class="quickadd" aria-labelledby="qaHeading">
  <div class="qa-heading"><h2 id="qaHeading">今日やることを追加</h2><span>タイトルだけで登録できます</span><span id="qaDateHint" class="shared-label" hidden></span></div>
@@ -68,6 +68,17 @@
    </form>
    <div class="note-history-head"><h3 id="noteHistoryHeading">これまでの記録</h3><div class="sort-control"><label for="noteSort">表示順</label><select id="noteSort"><option value="newest">新しい順</option><option value="oldest">古い順</option></select></div></div>
    <div id="noteHistory" aria-labelledby="noteHistoryHeading" aria-busy="true"></div>
+  </div>
+ </div>
+</section>
+<section id="staffView" aria-labelledby="staffHeading" hidden>
+ <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div><span class="shared-label">全員で共有</span></div>
+ <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
+ <div class="notes-layout">
+  <aside class="notes-projects" aria-label="外注さんを選択"><div class="notes-projects-head"><h3>外注さん</h3><button type="button" id="staffAdd" title="新しく追加">＋</button></div><div class="project-list" id="staffList"></div></aside>
+  <div class="notes-main">
+   <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
+   <div id="staffDetail"></div>
   </div>
  </div>
 </section>
