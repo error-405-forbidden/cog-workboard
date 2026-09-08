@@ -73,8 +73,10 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 .comment-form textarea{min-height:70px;resize:vertical}
 .comment-form-foot{display:flex;justify-content:flex-end;gap:8px}
 .staff-profile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 22px}
-.staff-name{font-size:20px;font-weight:700;margin-bottom:10px;overflow-wrap:anywhere}
-.staff-updated{font-size:12px;color:var(--muted);margin-top:12px}
+.staff-name{font-size:20px;font-weight:700;margin-bottom:14px;overflow-wrap:anywhere}
+.staff-section+.staff-section{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+.staff-section-label{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:6px}
+.staff-updated{font-size:12px;color:var(--muted);margin-top:16px}
 .staff-log-heading{font-size:14px;color:var(--muted);margin:24px 0 12px}
 @media(max-width:800px){.notes-layout{grid-template-columns:minmax(0,1fr);gap:16px}.notes-projects{display:none}.notes-mobile-picker{display:flex;flex-direction:column;gap:6px}.notes-mobile-picker select{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}.note-history{padding-left:17px;margin-left:5px}.project-note{padding:16px}.project-note::before{left:-24px}}
 </style>
@@ -204,12 +206,12 @@ function renderCommentThread(memoId,refPath){
   var d=drafts[memoId]||{text:'',author:''};
   html+='<div class="comment-form">'
    +'<input type="text" data-role="'+action+'-author" placeholder="お名前" value="'+esc(d.author)+'">'
-   +'<textarea data-role="'+action+'-text" placeholder="'+(refPath==='staffNotes'?'やり取りの記録を入力':'コメントを入力')+'">'+esc(d.text)+'</textarea>'
+   +'<textarea data-role="'+action+'-text" placeholder="'+(refPath==='staffNotes'?'ログを入力（いつ何を依頼した、連絡した、など）':'コメントを入力')+'">'+esc(d.text)+'</textarea>'
    +(d.msg?'<div class="form-msg">'+esc(d.msg)+'</div>':'')
    +'<div class="comment-form-foot"><button type="button" data-action="'+action+'-cancel">キャンセル</button><button type="button" class="primary" data-action="'+action+'-save" data-id="'+esc(memoId)+'" style="background:var(--accent);color:#fff;border:0;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700">送信</button></div>'
    +'</div>';
  }else{
-  html+='<div class="note-actions"><button type="button" data-action="'+action+'-open" data-id="'+esc(memoId)+'">'+(refPath==='staffNotes'?'やり取りを記録する':'コメントする')+'</button></div>';
+  html+='<div class="note-actions"><button type="button" data-action="'+action+'-open" data-id="'+esc(memoId)+'">'+(refPath==='staffNotes'?'ログを追加':'コメントする')+'</button></div>';
  }
  html+='</div>';
  return html;
@@ -275,16 +277,16 @@ function renderStaffList(){
 }
 document.getElementById('staffSelect').addEventListener('change',function(e){currentStaffId=e.target.value;staffEditing=false;renderStaff();});
 document.getElementById('staffAdd').addEventListener('click',function(){
- rtdb.ref('staffProfiles').push({name:'新しい外注さん',text:'',updatedAt:new Date().toISOString()}).then(function(ref){
-  currentStaffId=ref.key;staffEditing=true;staffEditDraft={name:'新しい外注さん',text:'',msg:''};renderStaff();
+ rtdb.ref('staffProfiles').push({name:'新しい外注さん',profile:'',currentWork:'',updatedAt:new Date().toISOString()}).then(function(ref){
+  currentStaffId=ref.key;staffEditing=true;staffEditDraft={name:'新しい外注さん',profile:'',currentWork:'',msg:''};renderStaff();
  });
 });
-function startStaffEdit(p){staffEditing=true;staffEditDraft={name:p.name,text:p.text,msg:''};renderStaff();}
+function startStaffEdit(p){staffEditing=true;staffEditDraft={name:p.name,profile:p.profile,currentWork:p.currentWork,msg:''};renderStaff();}
 function cancelStaffEdit(){staffEditing=false;staffEditDraft={};renderStaff();}
 function saveStaffEdit(id){
  var d=staffEditDraft;
  if(!d.name||!d.name.trim()){d.msg='名前を入力してください。';renderStaff();return;}
- rtdb.ref('staffProfiles/'+id).update({name:d.name.trim(),text:(d.text||'').trim(),updatedAt:new Date().toISOString()}).then(function(){
+ rtdb.ref('staffProfiles/'+id).update({name:d.name.trim(),profile:(d.profile||'').trim(),currentWork:(d.currentWork||'').trim(),updatedAt:new Date().toISOString()}).then(function(){
   staffEditing=false;staffEditDraft={};renderStaff();
  }).catch(function(err){
   d.msg='保存できませんでした。('+(err&&err.message||'')+')';renderStaff();
@@ -313,19 +315,23 @@ function renderStaff(){
   var d=staffEditDraft;
   body='<div class="staff-profile"><div class="edit-form">'
    +'<input type="text" data-role="s-name" placeholder="お名前" value="'+esc(d.name||'')+'" style="font-size:18px;font-weight:700;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px">'
-   +'<textarea data-role="s-text" placeholder="プロフィール・スキル・稼働状況など" style="min-height:260px">'+esc(d.text||'')+'</textarea>'
+   +'<div class="staff-section-label" style="margin-top:6px">プロフィール（スキル・稼働時間・レートなど）</div>'
+   +'<textarea data-role="s-profile" placeholder="プロフィール・スキル・稼働時間・単価など" style="min-height:200px">'+esc(d.profile||'')+'</textarea>'
+   +'<div class="staff-section-label">依頼している内容</div>'
+   +'<textarea data-role="s-currentwork" placeholder="今お願いしている業務・稼働状況など" style="min-height:100px">'+esc(d.currentWork||'')+'</textarea>'
    +(d.msg?'<div class="form-msg">'+esc(d.msg)+'</div>':'')
    +'<div class="edit-form-foot"><button type="button" data-action="s-cancel">キャンセル</button><button type="button" class="primary" data-action="s-save" data-id="'+esc(p.id)+'">保存</button></div>'
    +'</div></div>';
  }else{
   var updated=p.updatedAt?noteCreatedDay(p.updatedAt):'';
   body='<div class="staff-profile"><div class="staff-name">'+esc(p.name||'（名前未設定）')+'</div>'
-   +'<p class="project-note-text">'+esc(p.text||'（プロフィール未入力）')+'</p>'
+   +'<div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+esc(p.profile||'（未入力）')+'</p></div>'
+   +'<div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+esc(p.currentWork||'（未入力）')+'</p></div>'
    +(updated?'<p class="staff-updated">最終更新：'+esc(updated)+'</p>':'')
    +'<div class="note-actions"><button type="button" data-action="s-open" data-id="'+esc(p.id)+'">編集</button></div>'
    +'</div>';
  }
- body+='<div class="staff-log-heading">やり取りの記録</div>'+renderCommentThread(p.id,'staffNotes');
+ body+='<div class="staff-log-heading">ログ</div>'+renderCommentThread(p.id,'staffNotes');
  el.innerHTML=body;
  bindStaffEvents();
 }
@@ -335,7 +341,8 @@ function bindStaffEvents(){
  el.querySelectorAll('[data-action=s-cancel]').forEach(function(b){b.addEventListener('click',cancelStaffEdit);});
  el.querySelectorAll('[data-action=s-save]').forEach(function(b){b.addEventListener('click',function(){saveStaffEdit(b.dataset.id);});});
  el.querySelectorAll('[data-role=s-name]').forEach(function(t){t.addEventListener('input',function(){staffEditDraft.name=t.value;});});
- el.querySelectorAll('[data-role=s-text]').forEach(function(t){t.addEventListener('input',function(){staffEditDraft.text=t.value;});});
+ el.querySelectorAll('[data-role=s-profile]').forEach(function(t){t.addEventListener('input',function(){staffEditDraft.profile=t.value;});});
+ el.querySelectorAll('[data-role=s-currentwork]').forEach(function(t){t.addEventListener('input',function(){staffEditDraft.currentWork=t.value;});});
  el.querySelectorAll('[data-action=staffnote-open]').forEach(function(b){b.addEventListener('click',function(){openStaffNote(b.dataset.id);});});
  el.querySelectorAll('[data-action=staffnote-cancel]').forEach(function(b){b.addEventListener('click',closeStaffNote);});
  el.querySelectorAll('[data-action=staffnote-save]').forEach(function(b){b.addEventListener('click',function(){submitStaffNote(b.dataset.id);});});
@@ -371,7 +378,7 @@ function connectData(){
   var val=snap.val()||{};
   staff=Object.keys(val).map(function(id){
    var raw=val[id]||{};
-   return {id:id,name:String(raw.name||''),text:typeof raw.text==='string'?raw.text:'',updatedAt:typeof raw.updatedAt==='string'?raw.updatedAt:''};
+   return {id:id,name:String(raw.name||''),profile:typeof raw.profile==='string'?raw.profile:'',currentWork:typeof raw.currentWork==='string'?raw.currentWork:'',updatedAt:typeof raw.updatedAt==='string'?raw.updatedAt:''};
   });
   staffHasData=true;
   if(currentView==='staff'){document.getElementById('staffView').hidden=false;renderStaff();}
