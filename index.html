@@ -167,12 +167,16 @@
   .card-meta{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; align-items:center; }
   .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--slate-soft); color:var(--slate); }
   .tag.routine{ background:var(--accent-soft); color:var(--accent-ink); }
-  .badge-due{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; color:var(--sub); font-variant-numeric:tabular-nums; }
-  .badge-due.overdue{ color:var(--rose); font-weight:700; }
+  .badge-due{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; color:var(--accent-ink); font-variant-numeric:tabular-nums; }
+  .badge-due.overdue{ color:var(--rose); }
+  .badge-due.nodate{ color:var(--sub); font-weight:400; font-style:italic; }
   .badge-carry{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; background:var(--rose-soft); color:var(--rose); border-radius:6px; padding:1px 7px; }
   .waiting-for{ font-size:11.5px; color:var(--amber); font-weight:600; margin-top:5px; }
   .assignee{ margin-left:auto; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .assignee img{ width:100%; height:100%; object-fit:cover; }
+  .card-quick{ display:flex; flex-wrap:wrap; gap:4px; margin-top:9px; }
+  .card-quick button{ border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:6px; padding:4px 9px; font:inherit; font-size:11.5px; font-weight:700; cursor:pointer; }
+  .card-quick button:hover{ border-color:var(--accent); background:var(--accent-soft); }
 
   .edit{ display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
   .edit.open{ display:block; }
@@ -405,6 +409,12 @@
     { key:"cancelled",label:"中止",         color:"var(--rose)"   }
   ];
   var PRESET_TAGS = ["ジムセレ","買取サファリ","金融メディアサイト群","自社サイト","共通/インフラ","その他"];
+  var QUICK_STATUS = [
+    { key:"doing",     label:"進行中" },
+    { key:"done",      label:"完了" },
+    { key:"waiting",   label:"保留" },
+    { key:"cancelled", label:"中止" }
+  ];
 
   var tasks = [];
   var scope = "all";
@@ -630,12 +640,19 @@
     html += "<div class='card-meta'>";
     if(t.taskType === "routine") html += "<span class='tag routine'>定型</span>";
     (t.projectTags || []).forEach(function(tag){ html += "<span class='tag'>" + esc(tag) + "</span>"; });
-    if(t.dueDate) html += "<span class='badge-due" + (overdue ? " overdue" : "") + "'>期限 " + toMD(t.dueDate) + "</span>";
+    html += t.dueDate ? ("<span class='badge-due" + (overdue ? " overdue" : "") + "'>期限 " + toMD(t.dueDate) + "</span>") : "<span class='badge-due nodate'>無期限</span>";
     if(carry >= 2) html += "<span class='badge-carry'>" + carry + "日目</span>";
     html += "<span class='assignee' title='" + esc(t.assignee) + "'>" + esc(initials(t.assignee)) + "</span>";
     html += "</div>";
     if(t.status === "waiting" && t.waitingFor) html += "<div class='waiting-for'>⏳ " + esc(t.waitingFor) + "</div>";
     if(t.status === "cancelled" && t.cancelReason) html += "<div class='waiting-for'>中止理由: " + esc(t.cancelReason) + "</div>";
+
+    var unfinished = (t.status !== "done" && t.status !== "cancelled");
+    if(isToday && unfinished){
+      html += "<div class='card-quick'>" + QUICK_STATUS.filter(function(q){ return q.key !== t.status; }).map(function(q){
+        return "<button type='button' data-quick='" + q.key + "'>" + q.label + "</button>";
+      }).join("") + "</div>";
+    }
 
     html += "<div class='edit" + (openCardId === t.id ? " open" : "") + "' data-edit>";
     html += "<div class='edit-row'>";
@@ -660,6 +677,16 @@
     html += "</div></div>";
 
     card.innerHTML = html;
+
+    Array.prototype.forEach.call(card.querySelectorAll("[data-quick]"), function(b){
+      b.addEventListener("click", function(e){
+        e.stopPropagation();
+        var status = b.getAttribute("data-quick");
+        var patch = { status: status, updatedAt: todayStr() };
+        patch.doneAt = (status === "done") ? todayStr() : null;
+        rtdb.ref("tasks/" + t.id).update(patch).catch(function(err){ showToast("更新に失敗: " + err.message); });
+      });
+    });
 
     card.addEventListener("dragstart", function(e){
       e.dataTransfer.setData("text/plain", t.id);
@@ -888,19 +915,22 @@
   }
 
   // その日その時点でのステータスを推定する（完了・中止は当日のみ、それ以外は現在のステータスをそのまま使う簡易表示）
+  // 期限があるタスクは、その期限の日になるまでボードに出さない（特定の日にしかできない作業が
+  // 登録直後から未着手に居座って邪魔になるため）。期限が来たら、完了するまでずっと表示され続ける。
   function bucketForDate(t, vd){
     var created = t.createdAt || "9999-99-99";
     if(created > vd) return null; // その日にはまだ存在していない
     if(t.status === "done"){
       if(t.doneAt === vd) return "done";
-      if(t.doneAt && t.doneAt > vd) return "doing"; // その日時点ではまだ完了していなかった
+      if(t.doneAt && t.doneAt > vd) return (t.dueDate && vd < t.dueDate) ? null : "doing"; // その日時点ではまだ完了していなかった
       return null; // その日より前に完了済み
     }
     if(t.status === "cancelled"){
       if(t.updatedAt === vd) return "cancelled";
-      if(t.updatedAt && t.updatedAt > vd) return "doing";
+      if(t.updatedAt && t.updatedAt > vd) return (t.dueDate && vd < t.dueDate) ? null : "doing";
       return null;
     }
+    if(t.dueDate && vd < t.dueDate) return null; // 期限日になるまで表示しない
     return t.status; // todo / doing / waiting はそのまま
   }
 
@@ -942,6 +972,37 @@
   }
 
   $("dbRetry").addEventListener("click", function(){ location.reload(); });
+
+  // ---------- 一時ヘルパー：Claude Artifact側に登録済みの初期タスクを取り込む ----------
+  // ログイン後、ブラウザの開発者コンソール（F12）で importClaudeBoardTasks() を1回実行すると
+  // 竹川さん担当の13件が入る。同じキーで上書きするだけなので、複数回実行しても重複しない。
+  window.importClaudeBoardTasks = function(){
+    if(!meName){ console.warn("ログインしてから実行してください"); return; }
+    var seed = {
+      "task-20260906-1": { title:"メンテナンス（自社サイト・ジムセレ）", content:"WPサイトのバックアップ、プラグインなどを含めた更新", status:"done", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["自社サイト","ジムセレ"], taskType:"routine", dueDate:"2026-09-04", createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:"2026-09-07", logs:[] },
+      "task-20260906-2": { title:"各サイト バックアッププラグイン入れ替え", content:"脆弱性発表を受けての対応。WPvivid Backup PluginとUpdraftPlus Backupをメインに、対象サイトを調査してバックアップを取り直す。スポット業務。", status:"done", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["共通/インフラ"], taskType:"single", dueDate:"2026-09-04", createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:"2026-09-07", logs:[] },
+      "task-20260906-3": { title:"ジムセレ キャンペーン更新の追加", content:"村上さんに連絡", status:"done", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:"2026-09-06", createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:"2026-09-07", logs:[] },
+      "task-20260906-4": { title:"ムイレイさん 店舗ページ公開対応", content:"外注さんの営業でOKが出た店舗のページを作成・公開", status:"done", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:"2026-09-07", createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:"2026-09-07", logs:[] },
+      "task-20260906-5": { title:"LINEセルフ修正機能 内容まとめ・確認対応", content:"内容まとめと確認・承認の作業", status:"done", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:"2026-09-06", createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:"2026-09-07", logs:[] },
+      "task-20260906-6": { title:"アイキャッチ作成", content:"各メディアサイトの記事用アイキャッチをまとめて作成・追加", status:"doing", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["金融メディアサイト群"], taskType:"routine", dueDate:null, createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:null, logs:[] },
+      "task-20260906-7": { title:"ジムセレ 店舗追加公開（FASTGYM24・レップアップジム）", content:"案件提携が下りた店舗の登録・公開", status:"doing", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:null, createdAt:"2026-09-06", updatedAt:"2026-09-08", doneAt:null, logs:[] },
+      "task-20260908-1": { title:"ジムセレ 店舗登録", content:"ジムセレ 店舗登録", status:"todo", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:null, createdAt:"2026-09-08", updatedAt:"2026-09-08", doneAt:null, logs:[] },
+      "task-20260908-2": { title:"各サイトアイキャッチ作成", content:"各サイトアイキャッチ作成", status:"todo", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["金融メディアサイト群"], taskType:"single", dueDate:null, createdAt:"2026-09-08", updatedAt:"2026-09-08", doneAt:null, logs:[] },
+      "task-20260908-3": { title:"T2サイト確認", content:"プレミア確認、問題なければクイックチケット共有", status:"doing", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:[], taskType:"single", dueDate:null, createdAt:"2026-09-08", updatedAt:"2026-09-08", doneAt:null, logs:[] },
+      "task-20260908-4": { title:"監修者コメント修正、差し替え", content:"監修者コメント修正、差し替え", status:"done", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:null, createdAt:"2026-09-08", updatedAt:"2026-09-08", doneAt:"2026-09-08", logs:[] },
+      "task-20260908-5": { title:"篠原さんへ連絡", content:"掲載コメント追加確認依頼", status:"todo", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:"2026-09-20", createdAt:"2026-09-08", updatedAt:"2026-09-08", doneAt:null, logs:[] },
+      "task-20260908-6": { title:"岸さんへ連絡", content:"納品日", status:"todo", waitingFor:"", cancelReason:"", assignee:"竹川", projectTags:["ジムセレ"], taskType:"single", dueDate:"2026-09-20", createdAt:"2026-09-08", updatedAt:"2026-09-08", doneAt:null, logs:[] }
+    };
+    var updates = {};
+    Object.keys(seed).forEach(function(id){ updates["tasks/" + id] = seed[id]; });
+    rtdb.ref().update(updates).then(function(){
+      showToast("初期タスク13件を取り込みました");
+      console.log("取り込み完了：13件");
+    }).catch(function(err){
+      console.error(err);
+      showToast("取り込みに失敗しました: " + err.message);
+    });
+  };
 })();
 </script>
 </body>
