@@ -362,6 +362,42 @@ async function boot(){
 }
 $('dbRetry').addEventListener('click',boot);
 $('noteDate').value=dateStr();renderNotes();
+
+// ---------- 一時ヘルパー：旧サイトメモ（siteNotes、サイト単位のネスト構造）を
+// 新しいサイトメモ（siteMemos、1件=1ドキュメントのフラット時系列）へコピーする ----------
+// ログイン後、開発者コンソール（F12）で migrateSiteNotes() を1回実行すると復元される。
+// 変換先のIDは元の場所から決まる固定値なので、複数回実行しても重複しない。
+window.migrateSiteNotes=function(){
+  if(!me){ console.warn('ログインしてから実行してください'); return; }
+  rtdb.ref('siteNotes').once('value').then(function(snap){
+    var val=snap.val()||{};
+    var updates={},count=0;
+    Object.keys(val).forEach(function(siteId){
+      var site=val[siteId]||{};
+      var projectTag=site.name||'その他';
+      var entries=site.entries||{};
+      Object.keys(entries).forEach(function(entryId){
+        var e=entries[entryId]||{};
+        updates['siteMemos/'+siteId+'-'+entryId]={
+          projectTag:projectTag,
+          text:e.text||'',
+          date:e.date||'',
+          author:e.author||'未設定',
+          createdAt:(e.date?e.date+'T00:00:00.000Z':new Date().toISOString())
+        };
+        count++;
+      });
+    });
+    if(!count){ showToast('旧サイトメモにデータが見つかりませんでした'); return; }
+    return rtdb.ref().update(updates).then(function(){
+      showToast('サイトメモ'+count+'件を復元しました');
+      console.log('復元完了：'+count+'件');
+    });
+  }).catch(function(err){
+    console.error(err);
+    showToast('復元に失敗しました: '+err.message);
+  });
+};
 renderTags('qaTagRow',qaTags);renderDate();renderIdentity();
 
 // ---------- ログイン（Googleサインイン・許可メールアドレスのみ） ----------
