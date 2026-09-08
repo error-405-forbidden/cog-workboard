@@ -35,9 +35,10 @@
     projects.forEach(tag=>{
       const entries=records.siteMemos.filter(n=>n.projectTag===tag);
       const count=entries.length;
-      // Same pin as on the memo itself, so a fresh addition is visible from the project list without opening it.
-      const freshest=entries.reduce((latest,n)=>!latest||n.createdAt>latest?n.createdAt:latest,'');const pin=W.pinBadge(freshest);
-      const b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(tag===currentProject));b.innerHTML='<span class="project-name">'+E(W.labelTag(tag))+(pin?' '+pin:'')+'</span><span class="project-count">'+(states.siteMemos==='ready'?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseProject(tag));$('projectList').append(b);
+      // A fresh addition is flagged with a small triangle at the row's left edge instead
+      // of an inline badge — the list is too narrow for badge text without wrapping.
+      const freshest=entries.reduce((latest,n)=>!latest||n.createdAt>latest?n.createdAt:latest,'');const isNew=W.isNewToday(freshest);
+      const b=document.createElement('button');b.type='button';b.className='project-button'+(isNew?' pinned':'');if(isNew)b.title='本日追加あり';b.setAttribute('aria-pressed',String(tag===currentProject));b.innerHTML='<span class="project-name">'+E(W.labelTag(tag))+'</span><span class="project-count">'+(states.siteMemos==='ready'?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseProject(tag));$('projectList').append(b);
       const opt=document.createElement('option');opt.value=tag;opt.textContent=W.labelTag(tag)+(states.siteMemos==='ready'?'（'+count+'件）':'');$('projectSelect').append(opt);
     });$('projectSelect').value=currentProject;
   }
