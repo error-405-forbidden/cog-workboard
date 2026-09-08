@@ -4,11 +4,14 @@
   const definitions = {
     memo:{collection:'siteMemos', fields:[{key:'date', type:'date', label:'記録日', row:true}, {key:'author', label:'記入者', fallback:'未設定', row:true}, {key:'text', type:'textarea', label:'本文', required:true}]},
     staff:{collection:'staffProfiles', fields:[{key:'name', label:'お名前', required:true, className:'staff-name-input'}, {key:'profile', type:'textarea', label:'プロフィール（スキル・稼働時間・レートなど）', showLabel:true, labelClass:'profile-label', className:'profile-input'}, {key:'currentWork', type:'textarea', label:'依頼している内容', showLabel:true}], stamp:'updatedAt'},
-    log:{collection:'staffNotes', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]}
+    log:{collection:'staffNotes', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]},
+    comment:{collection:'siteMemoComments', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]}
   };
+  // recordKind names the editable/deletable record a thread's entries are — matches
+  // a key in `definitions` above, and is what gets passed to startEdit/saveEdit/etc.
   const threads = {
-    comment:{collection:'siteMemoComments', parent:'siteMemos', foreignKey:'memoId', openLabel:'コメントする', placeholder:'コメントを入力'},
-    staffnote:{collection:'staffNotes', parent:'staffProfiles', foreignKey:'staffId', openLabel:'ログを追加', placeholder:'ログを入力（いつ何を依頼した、連絡した、など）'}
+    comment:{collection:'siteMemoComments', parent:'siteMemos', foreignKey:'memoId', openLabel:'コメントする', placeholder:'コメントを入力', recordKind:'comment'},
+    staffnote:{collection:'staffNotes', parent:'staffProfiles', foreignKey:'staffId', openLabel:'ログを追加', placeholder:'ログを入力（いつ何を依頼した、連絡した、など）', recordKind:'log'}
   };
   function button(action, kind, id, text, primary = false, disabled = false) {
     return '<button type="button" data-wb-action="'+action+'" data-kind="'+kind+'" data-id="'+E(id)+'" data-focus-key="'+E(action+':'+kind+':'+id)+'"'+(primary?' class="primary"':'')+(disabled?' disabled':'')+'>'+text+'</button>';
@@ -101,6 +104,14 @@
       catch (err) { errors.set(id, W.message(err)); }
       finally { deleting.delete(id); changed(); }
     }
+    async function removeComment(id) {
+      if (!canWrite('siteMemoComments') || deleting.has(id)) return;
+      if (!arm.press(id)) return;
+      deleting.add(id); errors.delete(id); changed(true);
+      try { await options.db().doc('siteMemoComments/'+id).delete(); editors.delete(key('comment', id)); }
+      catch (err) { errors.set(id, W.message(err)); }
+      finally { deleting.delete(id); changed(); }
+    }
     function form(kind, id) {
       const item = editors.get(key(kind, id)); if (!item) return '';
       const definition = definitions[kind];
@@ -141,16 +152,17 @@
       const newestFirst = order !== 'oldest';
       const list = collapsed ? (newestFirst ? full.slice(0, THREAD_COLLAPSE_AT) : full.slice(-THREAD_COLLAPSE_AT)) : full;
       const more = collapsed ? moreButton(kind,parentId,full.length-list.length) : '';
+      const recordKind = config.recordKind;
       let html = '<div class="comments">'
         +(collapsed && !newestFirst ? more : '')
         +list.map(c => {
-        if (kind==='staffnote' && editors.has(key('log',c.id))) return '<div class="comment">'+form('log',c.id)+'</div>';
-        const rowActions = kind==='staffnote' ? '<span class="row-actions">'+button('edit','log',c.id,'編集',false,!canWrite(config.collection))+button('delete','log',c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</span>' : '';
+        if (editors.has(key(recordKind,c.id))) return '<div class="comment">'+form(recordKind,c.id)+'</div>';
+        const rowActions = '<span class="row-actions">'+button('edit',recordKind,c.id,'編集',false,!canWrite(config.collection))+button('delete',recordKind,c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</span>';
         return '<div class="comment"><div class="comment-head"><strong>'+E(c.author)+'</strong><span>'+E(W.createdDay(c.createdAt))+'</span>'+rowActions+'</div><div class="comment-text">'+truncatedBody(kind,c.id,c.text)+'</div>'+(errors.has(c.id)?'<div class="form-msg" role="alert">'+E(errors.get(c.id))+'</div>':'')+'</div>';
       }).join('')
         +(collapsed && newestFirst ? more : '');
       // A remotely deleted record must not silently discard an open edit draft.
-      for (const item of editors.values()) if (item.kind==='log' && kind==='staffnote' && item.record.staffId===parentId && !getRecord('staffNotes',item.id)) html += '<div class="comment">'+form('log',item.id)+'</div>';
+      for (const item of editors.values()) if (item.kind===recordKind && item.record[config.foreignKey]===parentId && !getRecord(config.collection,item.id)) html += '<div class="comment">'+form(recordKind,item.id)+'</div>';
       if (!options.loaded(config.collection)) html += '<div class="thread-status">'+E(options.error && options.error(config.collection) ? '読み込めませんでした。再読み込みしてください。' : '読み込み中…')+'</div>';
       const item = composers.get(key(kind,parentId));
       if (item && item.open) {
@@ -193,7 +205,7 @@
         else if (action==='compose') openComposer(kind,id);
         else if (action==='submit') void submit(kind,id);
         else if (action==='compose-cancel') { const item=composers.get(key(kind,id));if(item&&!item.busy){item.open=false;changed(true);} }
-        else if (action==='delete') { if (kind==='staff') void removeStaff(id); else if (kind==='memo') void removeMemo(id); else void removeLog(id); }
+        else if (action==='delete') { if (kind==='staff') void removeStaff(id); else if (kind==='memo') void removeMemo(id); else if (kind==='comment') void removeComment(id); else void removeLog(id); }
         else if (action==='thread-more') expandThread(kind,id);
         else if (action==='text-more') expandText(kind,id);
         else if (action==='text-less') collapseText(kind,id);
@@ -201,7 +213,7 @@
       root.addEventListener('input',onInput); root.addEventListener('change',onInput); root.addEventListener('click',onClick);
       return () => { root.removeEventListener('input',onInput);root.removeEventListener('change',onInput);root.removeEventListener('click',onClick); };
     }
-    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,removeMemo,expandThread,expandText,collapseText,moreButton,composeTrigger,
+    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,removeMemo,removeComment,expandThread,expandText,collapseText,moreButton,composeTrigger,
       hasEditor:(kind,id)=>editors.has(key(kind,id)),
       editingRecord:(kind,id)=>editors.get(key(kind,id))?.record,
       resetConfirmation:()=>arm.reset(),
