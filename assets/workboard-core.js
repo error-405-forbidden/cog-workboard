@@ -32,6 +32,20 @@
     const sorted = list.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();
   };
+  // Projects with the most recent site-memo activity float to the top; a project
+  // with no memos yet keeps its original (TAGS-then-first-seen) relative order at
+  // the bottom, since it has no timestamp to sort by.
+  W.sortProjects = (tags, notes) => {
+    const latest = new Map();
+    for (const n of notes) { const cur = latest.get(n.projectTag); if (!cur || n.createdAt > cur) latest.set(n.projectTag, n.createdAt); }
+    return tags.slice().sort((a, b) => {
+      const la = latest.get(a) || '', lb = latest.get(b) || '';
+      if (la && lb) return lb.localeCompare(la);
+      if (la) return -1;
+      if (lb) return 1;
+      return 0;
+    });
+  };
   W.sortThread = (list, order = 'newest') => {
     const sorted = list.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();

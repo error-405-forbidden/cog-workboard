@@ -30,7 +30,7 @@
   $('navStaff').addEventListener('click',()=>showView('staff'));
   function chooseProject(tag){currentProject=tag;ui.resetConfirmation();render(true);}
   function renderProjects(){
-    const projects=[...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))];
+    const projects=W.sortProjects([...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))],records.siteMemos);
     $('projectList').replaceChildren();$('projectSelect').replaceChildren();
     projects.forEach(tag=>{
       const entries=records.siteMemos.filter(n=>n.projectTag===tag);

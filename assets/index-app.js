@@ -171,7 +171,7 @@ let siteMemoComments=[],commentsReady=false,commentsFailed=false,commentsUnsubsc
 let notesUI=null,notesUnbind=null;
 function resetNotesUI(){if(notesUnbind)notesUnbind();if(notesUI)notesUI.dispose();notesUI=W.createRecordsUI({db:()=>fsdb,records:key=>key==='siteMemos'?siteNotes:siteMemoComments,loaded:key=>key==='siteMemos'?notesHasData:commentsReady,error:key=>key==='siteMemoComments'&&commentsFailed,canWrite:key=>!!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email)&&(key==='siteMemos'?notesReady:commentsReady),author:()=>me,render:force=>renderNoteHistory(force)});notesUnbind=notesUI.bind($('noteHistory'));}
 
-function getNoteProjects(){return [...new Set(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag),[noteProject]).map(canonicalProject))];}
+function getNoteProjects(){return W.sortProjects([...new Set(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag),[noteProject]).map(canonicalProject))],siteNotes);}
 function projectNotes(project,order){return W.sortMemos(siteNotes.filter(n=>n.projectTag===canonicalProject(project)),order);}
 function syncNoteControls(){$('noteSubmit').disabled=!notesReady||noteBusy||!me;$('noteText').disabled=noteBusy;$('noteDate').disabled=noteBusy;$('notesProjectSelect').disabled=noteBusy;$('notesProjects').querySelectorAll('button').forEach(b=>b.disabled=noteBusy);$('noteSubmit').textContent=noteBusy?'保存中…':'この案件に追記';}
 let currentView='tasks';
