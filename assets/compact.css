@@ -52,11 +52,12 @@ dialog .sheet-foot{padding:10px 16px}
 .pin-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:2px 8px 2px 7px;border-radius:99px;white-space:nowrap;vertical-align:middle}
 .pin-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
 /* The project list is too narrow for badge text (it wrapped the row onto two
-   lines) — a fresh addition there is flagged with a small triangle sitting in
-   the row's own left padding instead, so nothing reflows. */
+   lines) — a fresh addition there is flagged with a → at the row's left edge
+   instead, so nothing reflows. A real arrow glyph, not a tiny CSS wedge, so
+   it actually reads as a flag pointing at the row. */
 .project-button{position:relative}
-.project-button.pinned::before{content:'';position:absolute;left:1px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid var(--accent)}
-.project-button.pinned .project-name{margin-left:12px}
+.project-button.pinned::before{content:'→';position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:18px;font-weight:900;line-height:1;color:var(--accent)}
+.project-button.pinned .project-name{margin-left:20px}
 /* Edit/comment/delete triggers sit next to the name they act on, not in a
    separate row below the content — matches .note-actions button styling but
    inline, right-aligned, with no top margin of its own. */
