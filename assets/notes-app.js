@@ -9,6 +9,15 @@
   const disposers=[], dateTimers=new Map(), dateState=new Map();
   let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest';
   let ui, unbindHistory, unbindStaff, unbindStaffLog;
+  // "Unseen" project tracking (per-browser, shared with index.html via the same
+  // localStorage key/origin): a project stays flagged until you actually open it,
+  // not just for a fixed number of days. seenBootstrapped guards a one-time
+  // "mark everything that already existed as seen" pass on first load.
+  let seenActivity={},seenBootstrapped=false;
+  try{seenActivity=JSON.parse(localStorage.getItem('wb_seen_projects')||'{}');}catch(e){seenActivity={};}
+  function saveSeen(){try{localStorage.setItem('wb_seen_projects',JSON.stringify(seenActivity));}catch(e){}}
+  function markSeen(tag,activity){const latest=activity.get(tag);if(latest&&seenActivity[tag]!==latest){seenActivity[tag]=latest;saveSeen();}}
+  function projectActivity(){return W.projectActivity(records.siteMemos,records.siteMemoComments);}
   function createUI(){
     if(unbindHistory)unbindHistory();if(unbindStaff)unbindStaff();if(unbindStaffLog)unbindStaffLog();if(ui)ui.dispose();
     ui=W.createRecordsUI({db:()=>db,records:key=>records[key],loaded:key=>states[key]==='ready',error:key=>states[key]==='error',canWrite:key=>authReady&&states[key]==='ready',render:force=>{if(currentView==='notes')renderHistory(force);else renderStaff(force);}});
@@ -30,15 +39,19 @@
   $('navStaff').addEventListener('click',()=>showView('staff'));
   function chooseProject(tag){currentProject=tag;ui.resetConfirmation();render(true);}
   function renderProjects(){
-    const projects=W.sortProjects([...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))],records.siteMemos);
+    const activity=projectActivity();
+    // First time this browser sees the feature, treat all existing activity as
+    // already seen so the whole history doesn't light up at once.
+    if(!seenBootstrapped&&states.siteMemos==='ready'&&states.siteMemoComments==='ready'){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;seenBootstrapped=true;saveSeen();}
+    const projects=W.sortProjects([...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))],activity);
     $('projectList').replaceChildren();$('projectSelect').replaceChildren();
     projects.forEach(tag=>{
-      const entries=records.siteMemos.filter(n=>n.projectTag===tag);
-      const count=entries.length;
-      // A fresh addition is flagged with a small triangle at the row's left edge instead
-      // of an inline badge — the list is too narrow for badge text without wrapping.
-      const freshest=entries.reduce((latest,n)=>!latest||n.createdAt>latest?n.createdAt:latest,'');const isNew=W.isNewToday(freshest);
-      const b=document.createElement('button');b.type='button';b.className='project-button'+(isNew?' pinned':'');if(isNew)b.title='本日追加あり';b.setAttribute('aria-pressed',String(tag===currentProject));b.innerHTML='<span class="project-name">'+E(W.labelTag(tag))+'</span><span class="project-count">'+(states.siteMemos==='ready'?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseProject(tag));$('projectList').append(b);
+      const count=records.siteMemos.filter(n=>n.projectTag===tag).length;
+      // Stays flagged until you open the project (markSeen in renderHistory), not
+      // for a fixed number of days — a triangle at the row's left edge since the
+      // list is too narrow for badge text without wrapping.
+      const latest=activity.get(tag),isNew=!!latest&&latest!==seenActivity[tag];
+      const b=document.createElement('button');b.type='button';b.className='project-button'+(isNew?' pinned':'');if(isNew)b.title='未確認の更新あり';b.setAttribute('aria-pressed',String(tag===currentProject));b.innerHTML='<span class="project-name">'+E(W.labelTag(tag))+'</span><span class="project-count">'+(states.siteMemos==='ready'?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseProject(tag));$('projectList').append(b);
       const opt=document.createElement('option');opt.value=tag;opt.textContent=W.labelTag(tag)+(states.siteMemos==='ready'?'（'+count+'件）':'');$('projectSelect').append(opt);
     });$('projectSelect').value=currentProject;
   }
@@ -50,6 +63,10 @@
     const collapsed=full.length>10&&!ui.isThreadExpanded('memolist',currentProject),list=collapsed?full.slice(0,10):full;
     const content=(collapsed?ui.moreButton('memolist',currentProject,full.length-list.length):'')+list.map(n=>ui.memo(n,order)).join('')+ui.orphanMemos(currentProject);
     W.replaceContent($('history'), content?'<div class="note-history">'+content+'</div>':'<div class="note-empty">'+(states.siteMemos==='ready'?'<strong>まだ記録はありません</strong>':'読み込み中です…')+'</div>',!force);
+    // Only counts as "confirmed" while the notes tab is actually on screen. Re-render
+    // the project list immediately if this cleared a flag, instead of waiting for
+    // the next unrelated render to catch up.
+    if(currentView==='notes'){const before=seenActivity[currentProject];markSeen(currentProject,projectActivity());if(seenActivity[currentProject]!==before)renderProjects();}
   }
   function render(force=false){$('projectHeading').textContent=W.labelTag(currentProject);renderProjects();renderHistory(force);}
   function chooseStaff(id){currentStaffId=id;ui.resetConfirmation();renderStaff(true);}

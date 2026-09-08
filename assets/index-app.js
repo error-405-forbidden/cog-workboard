@@ -29,6 +29,15 @@ let editBase=null,editId=null,editInitial=null,editTags=[],editBusy=false,qaBusy
 let siteNotes=[],notesReady=false,notesHasData=false,noteBusy=false,noteProject=TAGS[0],notesUnsubscribe=null,notesGeneration=0,notesTimer=null;
 const noteDrafts=new Map();
 try{me=(localStorage.getItem('wb_me')||'').trim();}catch(e){}
+// "Unseen" project tracking (per-browser, shared with notes.html via the same
+// localStorage key/origin): a project stays flagged until you actually open it,
+// not just for a fixed number of days. seenBootstrapped guards a one-time
+// "mark everything that already existed as seen" pass on first load, so
+// introducing this feature doesn't flag the entire existing history as new.
+let seenActivity={},seenBootstrapped=false;
+try{seenActivity=JSON.parse(localStorage.getItem('wb_seen_projects')||'{}');}catch(e){seenActivity={};}
+function saveSeen(){try{localStorage.setItem('wb_seen_projects',JSON.stringify(seenActivity));}catch(e){}}
+function markSeen(tag,activity){const latest=activity.get(tag);if(latest&&seenActivity[tag]!==latest){seenActivity[tag]=latest;saveSeen();}}
 function toast(message){(document.querySelector('dialog[open]')||document.body).append($('toast'));clearTimeout(toastTimer);$('toast').textContent=message;$('toast').classList.add('show');toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3500);}
 function errorAt(id,message){$(id).textContent=message||'';$(id).hidden=!message;}
 const labelTag=W.labelTag;
@@ -171,7 +180,8 @@ let siteMemoComments=[],commentsReady=false,commentsFailed=false,commentsUnsubsc
 let notesUI=null,notesUnbind=null;
 function resetNotesUI(){if(notesUnbind)notesUnbind();if(notesUI)notesUI.dispose();notesUI=W.createRecordsUI({db:()=>fsdb,records:key=>key==='siteMemos'?siteNotes:siteMemoComments,loaded:key=>key==='siteMemos'?notesHasData:commentsReady,error:key=>key==='siteMemoComments'&&commentsFailed,canWrite:key=>!!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email)&&(key==='siteMemos'?notesReady:commentsReady),author:()=>me,render:force=>renderNoteHistory(force)});notesUnbind=notesUI.bind($('noteHistory'));}
 
-function getNoteProjects(){return W.sortProjects([...new Set(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag),[noteProject]).map(canonicalProject))],siteNotes);}
+function projectActivity(){return W.projectActivity(siteNotes,siteMemoComments);}
+function getNoteProjects(){return W.sortProjects([...new Set(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag),[noteProject]).map(canonicalProject))],projectActivity());}
 function projectNotes(project,order){return W.sortMemos(siteNotes.filter(n=>n.projectTag===canonicalProject(project)),order);}
 function syncNoteControls(){$('noteSubmit').disabled=!notesReady||noteBusy||!me;$('noteText').disabled=noteBusy;$('noteDate').disabled=noteBusy;$('notesProjectSelect').disabled=noteBusy;$('notesProjects').querySelectorAll('button').forEach(b=>b.disabled=noteBusy);$('noteSubmit').textContent=noteBusy?'保存中…':'この案件に追記';}
 let currentView='tasks';
@@ -180,11 +190,18 @@ $('showTasks').addEventListener('click',()=>showView('tasks'));$('showNotes').ad
 function saveNoteDraft(){noteDrafts.set(noteProject,{text:$('noteText').value,date:$('noteDate').value});}
 function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
 $('notesProjectSelect').addEventListener('change',e=>chooseNoteProject(e.target.value));$('noteText').addEventListener('input',saveNoteDraft);$('noteDate').addEventListener('input',saveNoteDraft);$('noteSort').addEventListener('change',renderNoteHistory);
-function renderNoteProjects(){const projects=getNoteProjects();$('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const entries=siteNotes.filter(n=>n.projectTag===tag);const count=entries.length;
- // A fresh addition is flagged with a small triangle at the row's left edge instead
- // of an inline badge — the list is too narrow for badge text without wrapping.
- const freshest=entries.reduce((latest,n)=>!latest||n.createdAt>latest?n.createdAt:latest,'');const isNew=W.isNewToday(freshest);
- const b=document.createElement('button');b.type='button';b.className='project-button'+(isNew?' pinned':'');if(isNew)b.title='本日追加あり';b.setAttribute('aria-pressed',String(tag===noteProject));b.innerHTML='<span class="project-name">'+esc(labelTag(tag))+'</span><span class="project-count">'+(notesHasData?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseNoteProject(tag));$('notesProjects').append(b);const option=document.createElement('option');option.value=tag;option.textContent=labelTag(tag)+(notesHasData?'（'+count+'件）':'');$('notesProjectSelect').append(option);});$('notesProjectSelect').value=noteProject;syncNoteControls();}
+function renderNoteProjects(){
+ const activity=projectActivity();
+ // First time this browser sees the feature, treat all existing activity as
+ // already seen so the whole history doesn't light up at once — only activity
+ // from here on should flag anything.
+ if(!seenBootstrapped&&notesHasData&&commentsReady){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;seenBootstrapped=true;saveSeen();}
+ const projects=getNoteProjects();$('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;
+ // Stays flagged until you open the project (markSeen in renderNoteHistory), not
+ // for a fixed number of days — a triangle at the row's left edge since the list
+ // is too narrow for badge text without wrapping.
+ const latest=activity.get(tag),isNew=!!latest&&latest!==seenActivity[tag];
+ const b=document.createElement('button');b.type='button';b.className='project-button'+(isNew?' pinned':'');if(isNew)b.title='未確認の更新あり';b.setAttribute('aria-pressed',String(tag===noteProject));b.innerHTML='<span class="project-name">'+esc(labelTag(tag))+'</span><span class="project-count">'+(notesHasData?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseNoteProject(tag));$('notesProjects').append(b);const option=document.createElement('option');option.value=tag;option.textContent=labelTag(tag)+(notesHasData?'（'+count+'件）':'');$('notesProjectSelect').append(option);});$('notesProjectSelect').value=noteProject;syncNoteControls();}
 function renderNoteHistory(force=false){
  const full=projectNotes(noteProject,$('noteSort').value);$('noteHistoryHeading').textContent='これまでの記録'+(notesHasData?'（'+full.length+'件）':'');
  if(!notesUI)return;
@@ -193,6 +210,11 @@ function renderNoteHistory(force=false){
  const content=(collapsed?notesUI.moreButton('memolist',noteProject,full.length-list.length):'')+list.map(n=>notesUI.memo(n,order)).join('')+notesUI.orphanMemos(noteProject);
  $('noteHistory').className=content?'note-history':'';
  W.replaceContent($('noteHistory'),content||'<div class="note-empty">'+(notesHasData?'<strong>まだ記録はありません</strong>最初の申し送りや、これまでの経緯を追記してください。':'接続後に、この案件の記録が表示されます。')+'</div>',!force);
+ // Only counts as "confirmed" while the notes tab is actually the one on screen —
+ // background data syncing while viewing tasks/staff must not silently clear a
+ // flag. Re-render the project list immediately if this cleared one, so the
+ // sidebar doesn't wait for the next unrelated render to catch up.
+ if(currentView==='notes'){const before=seenActivity[noteProject];markSeen(noteProject,projectActivity());if(seenActivity[noteProject]!==before)renderNoteProjects();}
 }
 function renderNotes(){$('notesProjectHeading').textContent=labelTag(noteProject);renderNoteProjects();renderNoteHistory();}
 function notesState(state,message){notesReady=state==='ready';$('notesStatus').hidden=notesReady;$('notesStatus').className='notes-status'+(state==='error'?' error':'');$('notesStatusText').textContent=message||'サイトメモを読み込み中…';$('notesRetry').hidden=state!=='error';$('noteHistory').setAttribute('aria-busy',String(state==='loading'));syncNoteControls();}

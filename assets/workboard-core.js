@@ -32,14 +32,23 @@
     const sorted = list.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();
   };
-  // Projects with the most recent site-memo activity float to the top; a project
-  // with no memos yet keeps its original (TAGS-then-first-seen) relative order at
-  // the bottom, since it has no timestamp to sort by.
-  W.sortProjects = (tags, notes) => {
+  // Latest activity per project tag, counting both memos and comments (a comment
+  // counts via its parent memo's projectTag) — a reply is an update too.
+  W.projectActivity = (notes, comments) => {
+    const tagOf = new Map(notes.map(n => [n.id, n.projectTag]));
     const latest = new Map();
-    for (const n of notes) { const cur = latest.get(n.projectTag); if (!cur || n.createdAt > cur) latest.set(n.projectTag, n.createdAt); }
+    const bump = (tag, createdAt) => { if (!tag) return; const cur = latest.get(tag); if (!cur || createdAt > cur) latest.set(tag, createdAt); };
+    for (const n of notes) bump(n.projectTag, n.createdAt);
+    for (const c of comments) bump(tagOf.get(c.memoId), c.createdAt);
+    return latest;
+  };
+  // Projects with the most recent activity float to the top; a project with no
+  // activity yet keeps its original (TAGS-then-first-seen) relative order at the
+  // bottom, since it has no timestamp to sort by. `activity` is a Map from
+  // W.projectActivity (tag -> latest createdAt).
+  W.sortProjects = (tags, activity) => {
     return tags.slice().sort((a, b) => {
-      const la = latest.get(a) || '', lb = latest.get(b) || '';
+      const la = activity.get(a) || '', lb = activity.get(b) || '';
       if (la && lb) return lb.localeCompare(la);
       if (la) return -1;
       if (lb) return 1;
