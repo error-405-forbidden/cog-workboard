@@ -40,6 +40,22 @@ dialog .sheet-foot{padding:10px 16px}
 .comments{margin-top:6px;padding-top:6px}
 .comment{padding:8px 10px}
 .note-actions{margin-top:4px}
+/* Base 表示順 sort control + its header row, shared by the memo history (both
+   pages) and the staff log — notes.html had no such control until now. */
+.note-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sort-control{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.sort-control select{font-size:14px;padding:7px 10px}
+/* Edit/comment/delete triggers sit next to the name they act on, not in a
+   separate row below the content — matches .note-actions button styling but
+   inline, right-aligned, with no top margin of its own. */
+.row-actions{display:inline-flex;gap:10px;margin-left:auto}
+.row-actions button{background:transparent;border:0;color:var(--accent);font-size:13px;font-weight:700;padding:2px 0;cursor:pointer}
+.row-actions button:hover{text-decoration:underline}
+.staff-name-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.staff-name-row .staff-name{margin-bottom:0}
+.staff-log-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:16px 0 10px}
+.staff-log-head .staff-log-heading{margin:0}
+.staff-log-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 /* The inline text-more/text-less toggle sits mid-sentence; render it like the
    編集/コメントする links, not a full native button (was showing as a bulky
    OS-styled button because it had no class of its own). */

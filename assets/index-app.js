@@ -184,8 +184,9 @@ function renderNoteProjects(){const projects=getNoteProjects();$('notesProjects'
 function renderNoteHistory(force=false){
  const full=projectNotes(noteProject,$('noteSort').value);$('noteHistoryHeading').textContent='これまでの記録'+(notesHasData?'（'+full.length+'件）':'');
  if(!notesUI)return;
+ const order=$('noteSort').value;
  const collapsed=full.length>10&&!notesUI.isThreadExpanded('memolist',noteProject),list=collapsed?full.slice(0,10):full;
- const content=(collapsed?notesUI.moreButton('memolist',noteProject,full.length-list.length):'')+list.map(n=>notesUI.memo(n)).join('')+notesUI.orphanMemos(noteProject);
+ const content=(collapsed?notesUI.moreButton('memolist',noteProject,full.length-list.length):'')+list.map(n=>notesUI.memo(n,order)).join('')+notesUI.orphanMemos(noteProject);
  $('noteHistory').className=content?'note-history':'';
  W.replaceContent($('noteHistory'),content||'<div class="note-empty">'+(notesHasData?'<strong>まだ記録はありません</strong>最初の申し送りや、これまでの経緯を追記してください。':'接続後に、この案件の記録が表示されます。')+'</div>',!force);
 }
@@ -211,14 +212,15 @@ const staffCollections=['staffProfiles','staffNotes'];
 let staffRecords=Object.fromEntries(staffCollections.map(k=>[k,[]]));
 let staffStates=Object.fromEntries(staffCollections.map(k=>[k,'loading']));
 let staffDisposers=[],staffDateTimers=new Map(),staffDateState=new Map();
-let currentStaffId=null,staffAdding=false,staffGeneration=0;
+let currentStaffId=null,staffAdding=false,staffGeneration=0,staffLogOrder='newest';
 let staffUI=null,staffUnbind=null,staffLogUnbind=null;
 function canWriteStaff(){return !!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email);}
-function resetStaffUI(){if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();if(staffUI)staffUI.dispose();staffUI=W.createRecordsUI({db:()=>fsdb,records:key=>staffRecords[key],loaded:key=>staffStates[key]==='ready',error:key=>staffStates[key]==='error',canWrite:key=>canWriteStaff()&&staffStates[key]==='ready',author:()=>me,render:force=>renderStaff(force)});staffUnbind=staffUI.bind($('staffDetail'));staffLogUnbind=staffUI.bind($('staffLog'));}
+function resetStaffUI(){if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();if(staffUI)staffUI.dispose();staffUI=W.createRecordsUI({db:()=>fsdb,records:key=>staffRecords[key],loaded:key=>staffStates[key]==='ready',error:key=>staffStates[key]==='error',canWrite:key=>canWriteStaff()&&staffStates[key]==='ready',author:()=>me,render:force=>renderStaff(force)});staffUnbind=staffUI.bind($('staffDetail'));staffLogUnbind=staffUI.bind($('staffLogPane'));}
 function staffStatus(){const error=staffCollections.some(k=>staffStates[k]==='error'),allReady=staffCollections.every(k=>staffStates[k]==='ready');$('staffStatus').hidden=allReady&&!error;$('staffStatus').className='notes-status'+(error?' error':'');$('staffStatusText').textContent=error?'読み込めませんでした。時間をおいて再度開いてください。':'読み込み中…';$('staffAdd').disabled=!allReady||staffAdding||!me;$('staffAddMobile').disabled=$('staffAdd').disabled;}
 function chooseStaff(id){currentStaffId=id;staffUI.resetConfirmation();renderStaff(true);}
 function renderStaffList(){const list=staffRecords.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'));$('staffList').replaceChildren();$('staffSelect').replaceChildren();list.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(p.id===currentStaffId));b.innerHTML='<span class="project-name">'+esc(p.name||'（名前未設定）')+'</span>';b.addEventListener('click',()=>chooseStaff(p.id));$('staffList').append(b);const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name||'（名前未設定）';$('staffSelect').append(opt);});if(currentStaffId)$('staffSelect').value=currentStaffId;}
 $('staffSelect').addEventListener('change',e=>chooseStaff(e.target.value));
+$('staffLogSort').addEventListener('change',()=>{staffLogOrder=$('staffLogSort').value;renderStaff(true);});
 async function addStaff(){
  if(staffAdding||staffStates.staffProfiles!=='ready'||!me){if(!me)$('meInput').focus();return;}
  const session=staffGeneration;staffAdding=true;staffStatus();
@@ -232,14 +234,17 @@ function renderStaff(force=false){
  if(!p&&currentStaffId)p=staffUI.editingRecord('staff',currentStaffId);
  if(!p){p=staffRecords.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'))[0];currentStaffId=p?p.id:null;}
  renderStaffList();
- if(!p){W.replaceContent($('staffDetail'),'<div class="note-empty">'+(staffStates.staffProfiles==='ready'?'<strong>まだ外注さんが登録されていません</strong><p>「＋」から追加してください。</p>':'読み込み中です…')+'</div>',!force);W.replaceContent($('staffLog'),'',!force);return;}
+ if(!p){W.replaceContent($('staffDetail'),'<div class="note-empty">'+(staffStates.staffProfiles==='ready'?'<strong>まだ外注さんが登録されていません</strong><p>「＋」から追加してください。</p>':'読み込み中です…')+'</div>',!force);W.replaceContent($('staffLog'),'',!force);W.replaceContent($('staffLogActions'),'',!force);return;}
  const present=staffRecords.staffProfiles.some(r=>r.id===p.id),next=staffDateState.get(p.id)||{},disabled=!canWriteStaff()||staffStates.staffProfiles!=='ready'||next.busy||!present;
  const nextRow='<div class="staff-next"><label for="staffNextDate">次回依頼日</label><input type="date" id="staffNextDate" value="'+esc(next.busy?next.value:p.nextRequestDate||'')+'" data-id="'+esc(p.id)+'"'+(disabled?' disabled':'')+'><button type="button" class="next-clear" data-next-clear="'+esc(p.id)+'"'+(disabled?' disabled':'')+'>クリア</button><span class="saved-flag"'+(next.saved?'':' hidden')+'>保存しました</span>'+(next.error?'<span class="form-msg" role="alert">'+esc(next.error)+'</span>':'')+'</div>';
  const updated=p.updatedAt?W.createdDay(p.updatedAt):'';
- const actions='<div class="note-actions"><button type="button" data-wb-action="edit" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()?' disabled':'')+'>編集</button><button type="button" data-wb-action="delete" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()||staffUI.isDeleting(p.id)?' disabled':'')+'>'+(staffUI.isArmed(p.id)?'本当に削除？もう一度クリック':'削除')+'</button></div>'+(staffUI.errorFor(p.id)?'<div class="form-msg" role="alert">'+esc(staffUI.errorFor(p.id))+'</div>':'');
- const body=staffUI.hasEditor('staff',p.id)?'<div class="staff-profile">'+staffUI.form('staff',p.id)+'</div>':'<div class="staff-profile"><div class="staff-name">'+esc(p.name||'（名前未設定）')+'</div><div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+esc(p.profile||'（未入力）')+'</p></div><div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+esc(p.currentWork||'（未入力）')+'</p></div>'+(updated?'<p class="staff-updated">最終更新：'+esc(updated)+'</p>':'')+actions+'</div>';
+ // Edit/delete sit next to the name itself instead of a separate row far below the content.
+ const headActions='<span class="row-actions"><button type="button" data-wb-action="edit" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()?' disabled':'')+'>編集</button><button type="button" data-wb-action="delete" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()||staffUI.isDeleting(p.id)?' disabled':'')+'>'+(staffUI.isArmed(p.id)?'本当に削除？もう一度クリック':'削除')+'</button></span>';
+ const errorMsg=staffUI.errorFor(p.id)?'<div class="form-msg" role="alert">'+esc(staffUI.errorFor(p.id))+'</div>':'';
+ const body=staffUI.hasEditor('staff',p.id)?'<div class="staff-profile">'+staffUI.form('staff',p.id)+'</div>':'<div class="staff-profile"><div class="staff-name-row"><div class="staff-name">'+esc(p.name||'（名前未設定）')+'</div>'+headActions+'</div>'+errorMsg+'<div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+esc(p.profile||'（未入力）')+'</p></div><div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+esc(p.currentWork||'（未入力）')+'</p></div>'+(updated?'<p class="staff-updated">最終更新：'+esc(updated)+'</p>':'')+'</div>';
  W.replaceContent($('staffDetail'),nextRow+body,!force);
- W.replaceContent($('staffLog'),staffUI.thread('staffnote',p.id),!force);
+ W.replaceContent($('staffLogActions'),staffUI.composeTrigger('staffnote',p.id),!force);
+ W.replaceContent($('staffLog'),staffUI.thread('staffnote',p.id,staffLogOrder),!force);
 }
 async function saveStaffNextDate(id,value){
  const p=staffRecords.staffProfiles.find(p=>p.id===id);if(!p||staffStates.staffProfiles!=='ready'||staffDateState.get(id)?.busy)return;
@@ -324,7 +329,7 @@ const stopAuth=auth.onAuthStateChanged(function(user){
   }
 });
 function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();syncControls();
- stopStaffData();staffRecords={staffProfiles:[],staffNotes:[]};staffStates={staffProfiles:'loading',staffNotes:'loading'};currentStaffId=null;if(staffUI)staffUI.dispose();$('staffDetail').replaceChildren();$('staffLog').replaceChildren();$('staffList').replaceChildren();
+ stopStaffData();staffRecords={staffProfiles:[],staffNotes:[]};staffStates={staffProfiles:'loading',staffNotes:'loading'};currentStaffId=null;if(staffUI)staffUI.dispose();$('staffDetail').replaceChildren();$('staffLog').replaceChildren();$('staffLogActions').replaceChildren();$('staffList').replaceChildren();
 }
 window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();deleteArm.dispose();samplesArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});

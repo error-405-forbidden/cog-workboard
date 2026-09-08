@@ -110,6 +110,14 @@
     function expandText(kind, id) { expandedText.add(key(kind, id)); changed(true); }
     function collapseText(kind, id) { expandedText.delete(key(kind, id)); changed(true); }
     function moreButton(kind, id, remaining) { return '<div class="note-actions">'+button('thread-more',kind,id,'さらに表示（残り'+remaining+'件）')+'</div>'; }
+    // The compose-open trigger renders wherever the caller wants it (typically next to a
+    // name/heading, not buried below a thread) — nothing to show while the composer is already open.
+    function composeTrigger(kind, id) {
+      const config = threads[kind];
+      const item = composers.get(key(kind, id));
+      if (item && item.open) return '';
+      return button('compose', kind, id, config.openLabel, false, !canWrite(config.collection));
+    }
     // Long memo/log bodies clamp to two lines via CSS (word/line-boundary aware,
     // unlike a fixed character cut) with a 続きを見る toggle; each entry tracks its own state.
     function truncatedBody(kind, id, text) {
@@ -117,16 +125,22 @@
       const span = '<span'+(long && !expanded ? ' class="text-clamp"' : '')+'>'+E(text)+'</span>';
       return span+(long?' '+button(expanded?'text-less':'text-more',kind,id,expanded?'閉じる':'続きを見る'):'');
     }
-    function thread(kind, parentId) {
-      const config = threads[kind], full = W.sortThread(options.records(config.collection).filter(r => r[config.foreignKey] === parentId));
+    function thread(kind, parentId, order = 'newest') {
+      const config = threads[kind], full = W.sortThread(options.records(config.collection).filter(r => r[config.foreignKey] === parentId), order);
       const tk = key(kind, parentId), collapsed = full.length > THREAD_COLLAPSE_AT && !expandedThreads.has(tk);
-      const list = collapsed ? full.slice(-THREAD_COLLAPSE_AT) : full;
+      // Collapsed view always favors the most recent entries; which end of the sorted
+      // array that is — and which side the "さらに表示" button sits on — depends on order.
+      const newestFirst = order !== 'oldest';
+      const list = collapsed ? (newestFirst ? full.slice(0, THREAD_COLLAPSE_AT) : full.slice(-THREAD_COLLAPSE_AT)) : full;
+      const more = collapsed ? moreButton(kind,parentId,full.length-list.length) : '';
       let html = '<div class="comments">'
-        +(collapsed ? moreButton(kind,parentId,full.length-list.length) : '')
+        +(collapsed && !newestFirst ? more : '')
         +list.map(c => {
         if (kind==='staffnote' && editors.has(key('log',c.id))) return '<div class="comment">'+form('log',c.id)+'</div>';
-        return '<div class="comment"><div class="comment-head"><strong>'+E(c.author)+'</strong><span>'+E(W.createdDay(c.createdAt))+'</span></div><div class="comment-text">'+truncatedBody(kind,c.id,c.text)+'</div>'+(kind==='staffnote'?'<div class="note-actions">'+button('edit','log',c.id,'編集',false,!canWrite(config.collection))+button('delete','log',c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</div>':'')+(errors.has(c.id)?'<div class="form-msg" role="alert">'+E(errors.get(c.id))+'</div>':'')+'</div>';
-      }).join('');
+        const rowActions = kind==='staffnote' ? '<span class="row-actions">'+button('edit','log',c.id,'編集',false,!canWrite(config.collection))+button('delete','log',c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</span>' : '';
+        return '<div class="comment"><div class="comment-head"><strong>'+E(c.author)+'</strong><span>'+E(W.createdDay(c.createdAt))+'</span>'+rowActions+'</div><div class="comment-text">'+truncatedBody(kind,c.id,c.text)+'</div>'+(errors.has(c.id)?'<div class="form-msg" role="alert">'+E(errors.get(c.id))+'</div>':'')+'</div>';
+      }).join('')
+        +(collapsed && newestFirst ? more : '');
       // A remotely deleted record must not silently discard an open edit draft.
       for (const item of editors.values()) if (item.kind==='log' && kind==='staffnote' && item.record.staffId===parentId && !getRecord('staffNotes',item.id)) html += '<div class="comment">'+form('log',item.id)+'</div>';
       if (!options.loaded(config.collection)) html += '<div class="thread-status">'+E(options.error && options.error(config.collection) ? '読み込めませんでした。再読み込みしてください。' : '読み込み中…')+'</div>';
@@ -135,13 +149,15 @@
         const disabled = item.busy || !canWrite(config.collection);
         const attrs = ' data-kind="'+kind+'" data-id="'+E(parentId)+'"'+(disabled?' disabled':'');
         html += '<div class="comment-form" data-draft-key="'+E(key(kind,parentId))+'" data-draft-version="'+item.version+'">'+'<input type="text" data-wb-compose="author"'+attrs+' placeholder="お名前" aria-label="お名前" value="'+E(item.draft.author)+'">'+'<textarea data-wb-compose="text"'+attrs+' placeholder="'+E(config.placeholder)+'" aria-label="'+E(config.placeholder)+'">'+E(item.draft.text)+'</textarea>'+(item.msg?'<div class="form-msg" role="alert">'+E(item.msg)+'</div>':'')+'<div class="comment-form-foot">'+button('compose-cancel',kind,parentId,'キャンセル',false,item.busy)+button('submit',kind,parentId,item.busy?'送信中…':'送信',true,disabled)+'</div></div>';
-      } else html += '<div class="note-actions">'+button('compose',kind,parentId,config.openLabel,false,!canWrite(config.collection))+'</div>';
+      }
       return html+'</div>';
     }
-    function memo(record) {
+    function memo(record, order) {
+      const editing = editors.has(key('memo',record.id));
       const created = W.createdDay(record.createdAt), recorded = created && created!==record.date ? '<p class="note-recorded">追記日：'+E(created)+'</p>' : '';
-      const body = editors.has(key('memo',record.id)) ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded+'<div class="note-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+'</div>';
-      return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span></div>'+body+thread('comment',record.id)+'</article>';
+      const headActions = editing ? '' : '<span class="row-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+composeTrigger('comment',record.id)+'</span>';
+      const body = editing ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded;
+      return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span>'+headActions+'</div>'+body+thread('comment',record.id,order)+'</article>';
     }
     function orphanMemos(project) {
       let html = '';
@@ -173,7 +189,7 @@
       root.addEventListener('input',onInput); root.addEventListener('change',onInput); root.addEventListener('click',onClick);
       return () => { root.removeEventListener('input',onInput);root.removeEventListener('change',onInput);root.removeEventListener('click',onClick); };
     }
-    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,expandThread,expandText,collapseText,moreButton,
+    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,expandThread,expandText,collapseText,moreButton,composeTrigger,
       hasEditor:(kind,id)=>editors.has(key(kind,id)),
       editingRecord:(kind,id)=>editors.get(key(kind,id))?.record,
       resetConfirmation:()=>arm.reset(),

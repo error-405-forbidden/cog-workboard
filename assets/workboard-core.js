@@ -27,7 +27,10 @@
     const sorted = list.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();
   };
-  W.sortThread = list => list.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  W.sortThread = (list, order = 'newest') => {
+    const sorted = list.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    return order === 'oldest' ? sorted : sorted.reverse();
+  };
 
   // The only RTDB adapter. Both pages use the same collection/document interface.
   W.createDb = rtdb => {

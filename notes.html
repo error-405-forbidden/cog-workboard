@@ -36,6 +36,7 @@
    <select id="projectSelect" aria-label="案件を選択"></select>
   </div>
   <h2 class="notes-project-heading" id="projectHeading"></h2>
+  <div class="note-history-head"><span></span><div class="sort-control"><label for="noteSort">表示順</label><select id="noteSort"><option value="newest">新しい順</option><option value="oldest">古い順</option></select></div></div>
   <div id="history"></div>
  </div>
 </div>
@@ -47,7 +48,7 @@
  </div>
  <div class="staff-columns">
   <div class="staff-profile-pane"><div id="staffDetail"></div></div>
-  <div class="staff-log-pane"><h3 class="staff-log-heading">ログ</h3><div id="staffLog"></div></div>
+  <div class="staff-log-pane" id="staffLogPane"><div class="staff-log-head"><h3 class="staff-log-heading">ログ</h3><div class="staff-log-controls"><span id="staffLogActions"></span><div class="sort-control"><label for="staffLogSort">表示順</label><select id="staffLogSort"><option value="newest">新しい順</option><option value="oldest">古い順</option></select></div></div></div><div id="staffLog"></div></div>
   <aside class="notes-projects staff-list-pane">
    <div class="notes-projects-head"><h3>外注さん</h3><button type="button" id="staffAdd" title="新しく追加">＋</button></div>
    <div class="project-list" id="staffList"></div>
