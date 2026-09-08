@@ -15,7 +15,7 @@
   }
   // One editor/composer implementation for memos, profiles, staff logs and replies.
   W.createRecordsUI = options => {
-    const editors = new Map(), composers = new Map(), errors = new Map(), deleting = new Set();
+    const editors = new Map(), composers = new Map(), errors = new Map(), deleting = new Set(), expandedThreads = new Set();
     let disposed = false;
     const changed = (force = false) => { if (!disposed) options.render(force); };
     const canWrite = collection => !disposed && options.canWrite(collection);
@@ -97,9 +97,15 @@
       const missing = !getRecord(definition.collection, id);
       return '<div class="edit-form" data-draft-key="'+E(key(kind,id))+'" data-draft-version="'+item.version+'">'+(rows.length?'<div class="edit-form-row">'+rows.map(field).join('')+'</div>':'')+rest.map(field).join('')+(missing?'<div class="form-msg">この記録は削除されています。入力内容を控えてから閉じてください。</div>':'')+(item.msg?'<div class="form-msg" role="alert">'+E(item.msg)+'</div>':'')+'<div class="edit-form-foot">'+button('cancel',kind,id,'キャンセル',false,item.busy)+button('save',kind,id,item.busy?'保存中…':'保存',true,disabled||missing)+'</div></div>';
     }
+    const THREAD_COLLAPSE_AT = 10;
+    function expandThread(kind, id) { expandedThreads.add(key(kind, id)); changed(true); }
     function thread(kind, parentId) {
-      const config = threads[kind], list = W.sortThread(options.records(config.collection).filter(r => r[config.foreignKey] === parentId));
-      let html = '<div class="comments">'+list.map(c => {
+      const config = threads[kind], full = W.sortThread(options.records(config.collection).filter(r => r[config.foreignKey] === parentId));
+      const tk = key(kind, parentId), collapsed = full.length > THREAD_COLLAPSE_AT && !expandedThreads.has(tk);
+      const list = collapsed ? full.slice(-THREAD_COLLAPSE_AT) : full;
+      let html = '<div class="comments">'
+        +(collapsed ? '<div class="note-actions">'+button('thread-more',kind,parentId,'さらに表示（残り'+(full.length-list.length)+'件）')+'</div>' : '')
+        +list.map(c => {
         if (kind==='staffnote' && editors.has(key('log',c.id))) return '<div class="comment">'+form('log',c.id)+'</div>';
         return '<div class="comment"><div class="comment-head"><strong>'+E(c.author)+'</strong><span>'+E(W.createdDay(c.createdAt))+'</span></div><div class="comment-text">'+E(c.text)+'</div>'+(kind==='staffnote'?'<div class="note-actions">'+button('edit','log',c.id,'編集',false,!canWrite(config.collection))+button('delete','log',c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</div>':'')+(errors.has(c.id)?'<div class="form-msg" role="alert">'+E(errors.get(c.id))+'</div>':'')+'</div>';
       }).join('');
@@ -142,15 +148,16 @@
         else if (action==='submit') void submit(kind,id);
         else if (action==='compose-cancel') { const item=composers.get(key(kind,id));if(item&&!item.busy){item.open=false;changed(true);} }
         else if (action==='delete') void removeLog(id);
+        else if (action==='thread-more') expandThread(kind,id);
       };
       root.addEventListener('input',onInput); root.addEventListener('change',onInput); root.addEventListener('click',onClick);
       return () => { root.removeEventListener('input',onInput);root.removeEventListener('change',onInput);root.removeEventListener('click',onClick); };
     }
-    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,
+    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,expandThread,
       hasEditor:(kind,id)=>editors.has(key(kind,id)),
       editingRecord:(kind,id)=>editors.get(key(kind,id))?.record,
       resetConfirmation:()=>arm.reset(),
-      dispose:()=>{disposed=true;arm.dispose();editors.clear();composers.clear();errors.clear();},
+      dispose:()=>{disposed=true;arm.dispose();editors.clear();composers.clear();errors.clear();expandedThreads.clear();},
       // Exposed read-only references are useful to dependency-free unit tests.
       drafts:editors,composers
     };
