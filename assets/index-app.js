@@ -31,12 +31,15 @@ const noteDrafts=new Map();
 try{me=(localStorage.getItem('wb_me')||'').trim();}catch(e){}
 // "Unseen" project tracking (per-browser, shared with notes.html via the same
 // localStorage key/origin): a project stays flagged until you actually open it,
-// not just for a fixed number of days. seenBootstrapped guards a one-time
-// "mark everything that already existed as seen" pass on first load, so
-// introducing this feature doesn't flag the entire existing history as new.
+// not just for a fixed number of days. The one-time "mark everything that
+// already existed as seen" bootstrap pass must be remembered across reloads
+// (not just for the current page load) — otherwise every reload re-treats any
+// not-yet-tracked tag as "already seen" before you ever get a chance to see it
+// flagged, which silently swallows every genuinely new tag forever.
 let seenActivity={},seenBootstrapped=false;
-try{seenActivity=JSON.parse(localStorage.getItem('wb_seen_projects')||'{}');}catch(e){seenActivity={};}
-function saveSeen(){try{localStorage.setItem('wb_seen_projects',JSON.stringify(seenActivity));}catch(e){}}
+try{seenActivity=JSON.parse(localStorage.getItem('wb_seen_projects_v2')||'{}');seenBootstrapped=localStorage.getItem('wb_seen_bootstrapped_v2')==='1';}catch(e){seenActivity={};seenBootstrapped=false;}
+function saveSeen(){try{localStorage.setItem('wb_seen_projects_v2',JSON.stringify(seenActivity));}catch(e){}}
+function markBootstrapped(){seenBootstrapped=true;try{localStorage.setItem('wb_seen_bootstrapped_v2','1');}catch(e){}}
 function markSeen(tag,activity){const latest=activity.get(tag);if(latest&&seenActivity[tag]!==latest){seenActivity[tag]=latest;saveSeen();}}
 function toast(message){(document.querySelector('dialog[open]')||document.body).append($('toast'));clearTimeout(toastTimer);$('toast').textContent=message;$('toast').classList.add('show');toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3500);}
 function errorAt(id,message){$(id).textContent=message||'';$(id).hidden=!message;}
@@ -195,7 +198,7 @@ function renderNoteProjects(){
  // First time this browser sees the feature, treat all existing activity as
  // already seen so the whole history doesn't light up at once — only activity
  // from here on should flag anything.
- if(!seenBootstrapped&&notesHasData&&commentsReady){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;seenBootstrapped=true;saveSeen();}
+ if(!seenBootstrapped&&notesHasData&&commentsReady){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;saveSeen();markBootstrapped();}
  const projects=getNoteProjects();$('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;
  // Stays flagged until you open the project (markSeen in renderNoteHistory), not
  // for a fixed number of days — a triangle at the row's left edge since the list

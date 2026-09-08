@@ -11,11 +11,15 @@
   let ui, unbindHistory, unbindStaff, unbindStaffLog;
   // "Unseen" project tracking (per-browser, shared with index.html via the same
   // localStorage key/origin): a project stays flagged until you actually open it,
-  // not just for a fixed number of days. seenBootstrapped guards a one-time
-  // "mark everything that already existed as seen" pass on first load.
+  // not just for a fixed number of days. The one-time "mark everything that
+  // already existed as seen" bootstrap pass must be remembered across reloads
+  // (not just for the current page load) — otherwise every reload re-treats any
+  // not-yet-tracked tag as "already seen" before you ever get a chance to see it
+  // flagged, which silently swallows every genuinely new tag forever.
   let seenActivity={},seenBootstrapped=false;
-  try{seenActivity=JSON.parse(localStorage.getItem('wb_seen_projects')||'{}');}catch(e){seenActivity={};}
-  function saveSeen(){try{localStorage.setItem('wb_seen_projects',JSON.stringify(seenActivity));}catch(e){}}
+  try{seenActivity=JSON.parse(localStorage.getItem('wb_seen_projects_v2')||'{}');seenBootstrapped=localStorage.getItem('wb_seen_bootstrapped_v2')==='1';}catch(e){seenActivity={};seenBootstrapped=false;}
+  function saveSeen(){try{localStorage.setItem('wb_seen_projects_v2',JSON.stringify(seenActivity));}catch(e){}}
+  function markBootstrapped(){seenBootstrapped=true;try{localStorage.setItem('wb_seen_bootstrapped_v2','1');}catch(e){}}
   function markSeen(tag,activity){const latest=activity.get(tag);if(latest&&seenActivity[tag]!==latest){seenActivity[tag]=latest;saveSeen();}}
   function projectActivity(){return W.projectActivity(records.siteMemos,records.siteMemoComments);}
   function createUI(){
@@ -42,7 +46,7 @@
     const activity=projectActivity();
     // First time this browser sees the feature, treat all existing activity as
     // already seen so the whole history doesn't light up at once.
-    if(!seenBootstrapped&&states.siteMemos==='ready'&&states.siteMemoComments==='ready'){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;seenBootstrapped=true;saveSeen();}
+    if(!seenBootstrapped&&states.siteMemos==='ready'&&states.siteMemoComments==='ready'){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;saveSeen();markBootstrapped();}
     const projects=W.sortProjects([...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))],activity);
     $('projectList').replaceChildren();$('projectSelect').replaceChildren();
     projects.forEach(tag=>{
