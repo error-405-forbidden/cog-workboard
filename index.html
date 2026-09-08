@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>朝夕ボード</title>
+<title>管理ボード</title>
 <meta name="robots" content="noindex, nofollow">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -17,7 +17,7 @@
 <body>
 <div id="loginScreen" class="login-screen">
   <div class="login-box">
-    <h1>朝夕ボード</h1>
+    <h1>管理ボード</h1>
     <p>COG Workboard / 社内メンバー専用</p>
     <button class="google-btn" id="googleLoginBtn" type="button">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="18" height="18">
@@ -29,7 +29,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol><symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16M6 8v3M12 8v6M18 8v2"/></symbol></svg>
 <div class="shell" id="appRoot" hidden>
 <header class="topbar">
- <div class="brand"><div class="brandmark"><svg class="icon" aria-hidden="true"><use href="#i-board"/></svg></div><div><div class="brand-caption">COG / DAILY WORK</div><h1>朝夕ボード</h1><div class="date-line"><time class="date" id="todayLabel"></time><span class="cycle-label" id="cycleLabel"></span></div></div></div>
+ <div class="brand"><div class="brandmark"><svg class="icon" aria-hidden="true"><use href="#i-board"/></svg></div><div><div class="brand-caption">COG / DAILY WORK</div><h1>管理ボード</h1><div class="date-line"><time class="date" id="todayLabel"></time><span class="cycle-label" id="cycleLabel"></span></div></div></div>
  <div class="header-right"><div class="connection" id="connection" role="status"><i></i><span>接続中</span></div><div class="identity"><img id="meAvatar" class="me-avatar" alt="" hidden><label for="meInput">あなた</label><input id="meInput" placeholder="名前を設定" maxlength="40" autocomplete="name"><button class="btn quiet" id="meSave" type="button">保存</button></div><button class="btn quiet" id="logoutBtn" type="button">ログアウト</button><button class="btn primary top-summary" id="openSummary" type="button" disabled><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>終礼まとめ</button></div>
 </header>
 <div class="notice" id="nameNotice" hidden><div><strong>最初に、あなたの名前を設定してください</strong><p>登録時の担当者、終礼まとめの対象、サイトメモの記入者に使います。ほかのメンバーと同じ表記にそろえてください。</p></div><button type="button" class="btn" id="focusName">名前を入力</button></div>
