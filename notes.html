@@ -74,6 +74,10 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 .comment-form-foot{display:flex;justify-content:flex-end;gap:8px}
 .staff-profile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 22px}
 .staff-name{font-size:20px;font-weight:700;margin-bottom:14px;overflow-wrap:anywhere}
+.staff-next{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border-radius:8px;padding:10px 14px;margin-bottom:18px}
+.staff-next label{font-size:13px;font-weight:700;color:var(--accent)}
+.staff-next input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit}
+.staff-next .saved-flag{font-size:12px;color:var(--accent)}
 .staff-section+.staff-section{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
 .staff-section-label{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:6px}
 .staff-updated{font-size:12px;color:var(--muted);margin-top:16px}
@@ -310,6 +314,7 @@ function renderStaff(){
  if(!staff.length){el.innerHTML='<div class="note-empty"><strong>まだ外注さんが登録されていません</strong><p>左上の「＋」から追加してください。</p></div>';return;}
  if(!currentStaffId||!staff.some(function(p){return p.id===currentStaffId;}))currentStaffId=staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ja');})[0].id;
  var p=staff.find(function(x){return x.id===currentStaffId;});
+ var nextRow='<div class="staff-next"><label for="staffNextDate">次回依頼日</label><input type="date" id="staffNextDate" value="'+esc(p.nextRequestDate||'')+'" data-id="'+esc(p.id)+'"><button type="button" data-action="s-next-clear" data-id="'+esc(p.id)+'" style="background:transparent;border:0;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer">クリア</button><span class="saved-flag" id="staffNextSaved" hidden>保存しました</span></div>';
  var body;
  if(staffEditing){
   var d=staffEditDraft;
@@ -332,7 +337,7 @@ function renderStaff(){
    +'</div>';
  }
  body+='<div class="staff-log-heading">ログ</div>'+renderCommentThread(p.id,'staffNotes');
- el.innerHTML=body;
+ el.innerHTML=nextRow+body;
  bindStaffEvents();
 }
 function bindStaffEvents(){
@@ -348,6 +353,15 @@ function bindStaffEvents(){
  el.querySelectorAll('[data-action=staffnote-save]').forEach(function(b){b.addEventListener('click',function(){submitStaffNote(b.dataset.id);});});
  el.querySelectorAll('[data-role=staffnote-text]').forEach(function(t){t.addEventListener('input',function(){var id=openStaffNoteId;if(id&&staffNoteDrafts[id])staffNoteDrafts[id].text=t.value;});});
  el.querySelectorAll('[data-role=staffnote-author]').forEach(function(t){t.addEventListener('input',function(){var id=openStaffNoteId;if(id&&staffNoteDrafts[id])staffNoteDrafts[id].author=t.value;});});
+ var nextInput=document.getElementById('staffNextDate');
+ if(nextInput)nextInput.addEventListener('change',function(){saveStaffNextDate(nextInput.dataset.id,nextInput.value);});
+ el.querySelectorAll('[data-action=s-next-clear]').forEach(function(b){b.addEventListener('click',function(){saveStaffNextDate(b.dataset.id,'');});});
+}
+function saveStaffNextDate(id,value){
+ rtdb.ref('staffProfiles/'+id).update({nextRequestDate:value||null}).then(function(){
+  var flag=document.getElementById('staffNextSaved');
+  if(flag){flag.hidden=false;setTimeout(function(){flag.hidden=true;},2000);}
+ });
 }
 
 /* ---------- connect ---------- */
@@ -378,7 +392,7 @@ function connectData(){
   var val=snap.val()||{};
   staff=Object.keys(val).map(function(id){
    var raw=val[id]||{};
-   return {id:id,name:String(raw.name||''),profile:typeof raw.profile==='string'?raw.profile:'',currentWork:typeof raw.currentWork==='string'?raw.currentWork:'',updatedAt:typeof raw.updatedAt==='string'?raw.updatedAt:''};
+   return {id:id,name:String(raw.name||''),profile:typeof raw.profile==='string'?raw.profile:'',currentWork:typeof raw.currentWork==='string'?raw.currentWork:'',nextRequestDate:isoDay(raw.nextRequestDate),updatedAt:typeof raw.updatedAt==='string'?raw.updatedAt:''};
   });
   staffHasData=true;
   if(currentView==='staff'){document.getElementById('staffView').hidden=false;renderStaff();}
