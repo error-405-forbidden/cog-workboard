@@ -41,3 +41,13 @@ dialog .sheet-foot{padding:10px 16px}
   .quickadd{padding:12px}
   dialog .sheet-body{padding:14px}
 }
+
+/* 外注さん: profile | log | staff list, three columns on wide screens. */
+.staff-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 220px;gap:16px;align-items:start;margin-top:16px}
+.staff-profile-pane,.staff-log-pane{min-width:0}
+.staff-log-pane .staff-log-heading{margin-top:0}
+.staff-list-pane{padding:8px}
+@media(max-width:800px){
+  .staff-columns{grid-template-columns:1fr;gap:14px}
+  .staff-list-pane{display:none}
+}

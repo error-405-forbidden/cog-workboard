@@ -8,11 +8,11 @@
   const states=Object.fromEntries(collections.map(key=>[key,'loading']));
   const disposers=[], dateTimers=new Map(), dateState=new Map();
   let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false;
-  let ui, unbindHistory, unbindStaff;
+  let ui, unbindHistory, unbindStaff, unbindStaffLog;
   function createUI(){
-    if(unbindHistory)unbindHistory();if(unbindStaff)unbindStaff();if(ui)ui.dispose();
+    if(unbindHistory)unbindHistory();if(unbindStaff)unbindStaff();if(unbindStaffLog)unbindStaffLog();if(ui)ui.dispose();
     ui=W.createRecordsUI({db:()=>db,records:key=>records[key],loaded:key=>states[key]==='ready',error:key=>states[key]==='error',canWrite:key=>authReady&&states[key]==='ready',render:force=>{if(currentView==='notes')renderHistory(force);else renderStaff(force);}});
-    unbindHistory=ui.bind($('history'));unbindStaff=ui.bind($('staffDetail'));
+    unbindHistory=ui.bind($('history'));unbindStaff=ui.bind($('staffDetail'));unbindStaffLog=ui.bind($('staffLog'));
   }
   function status(){
     const required=currentView==='notes'?['siteMemos','siteMemoComments']:['staffProfiles','staffNotes'];
@@ -69,12 +69,14 @@
     if(!p&&currentStaffId)p=ui.editingRecord('staff',currentStaffId);
     if(!p){p=records.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'))[0];currentStaffId=p?p.id:null;}
     renderStaffList();
-    if(!p){W.replaceContent($('staffDetail'),'<div class="note-empty">'+(states.staffProfiles==='ready'?'<strong>まだ外注さんが登録されていません</strong><p>「＋」から追加してください。</p>':'読み込み中です…')+'</div>',!force);return;}
+    if(!p){W.replaceContent($('staffDetail'),'<div class="note-empty">'+(states.staffProfiles==='ready'?'<strong>まだ外注さんが登録されていません</strong><p>「＋」から追加してください。</p>':'読み込み中です…')+'</div>',!force);W.replaceContent($('staffLog'),'',!force);return;}
     const present=records.staffProfiles.some(r=>r.id===p.id), next=dateState.get(p.id)||{}, disabled=!authReady||states.staffProfiles!=='ready'||next.busy||!present;
     const nextRow='<div class="staff-next"><label for="staffNextDate">次回依頼日</label><input type="date" id="staffNextDate" value="'+E(next.busy?next.value:p.nextRequestDate||'')+'" data-id="'+E(p.id)+'"'+(disabled?' disabled':'')+'>'+ '<button type="button" class="next-clear" data-next-clear="'+E(p.id)+'"'+(disabled?' disabled':'')+'>クリア</button><span class="saved-flag"'+(next.saved?'':' hidden')+'>保存しました</span>'+(next.error?'<span class="form-msg" role="alert">'+E(next.error)+'</span>':'')+'</div>';
     const updated=p.updatedAt?W.createdDay(p.updatedAt):'';
-    const body=ui.hasEditor('staff',p.id)?'<div class="staff-profile">'+ui.form('staff',p.id)+'</div>':'<div class="staff-profile"><div class="staff-name">'+E(p.name||'（名前未設定）')+'</div><div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+E(p.profile||'（未入力）')+'</p></div><div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+E(p.currentWork||'（未入力）')+'</p></div>'+(updated?'<p class="staff-updated">最終更新：'+E(updated)+'</p>':'')+'<div class="note-actions"><button type="button" data-wb-action="edit" data-kind="staff" data-id="'+E(p.id)+'"'+(!present||!authReady||states.staffProfiles!=='ready'?' disabled':'')+'>編集</button></div></div>';
-    W.replaceContent($('staffDetail'),nextRow+body+'<div class="staff-log-heading">ログ</div>'+ui.thread('staffnote',p.id),!force);
+    const actions='<div class="note-actions"><button type="button" data-wb-action="edit" data-kind="staff" data-id="'+E(p.id)+'"'+(!present||!authReady||states.staffProfiles!=='ready'?' disabled':'')+'>編集</button><button type="button" data-wb-action="delete" data-kind="staff" data-id="'+E(p.id)+'"'+(!present||!authReady||states.staffProfiles!=='ready'||ui.isDeleting(p.id)?' disabled':'')+'>'+(ui.isArmed(p.id)?'本当に削除？もう一度クリック':'削除')+'</button></div>'+(ui.errorFor(p.id)?'<div class="form-msg" role="alert">'+E(ui.errorFor(p.id))+'</div>':'');
+    const body=ui.hasEditor('staff',p.id)?'<div class="staff-profile">'+ui.form('staff',p.id)+'</div>':'<div class="staff-profile"><div class="staff-name">'+E(p.name||'（名前未設定）')+'</div><div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+E(p.profile||'（未入力）')+'</p></div><div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+E(p.currentWork||'（未入力）')+'</p></div>'+(updated?'<p class="staff-updated">最終更新：'+E(updated)+'</p>':'')+actions+'</div>';
+    W.replaceContent($('staffDetail'),nextRow+body,!force);
+    W.replaceContent($('staffLog'),ui.thread('staffnote',p.id),!force);
   }
   async function saveStaffNextDate(id,value){
     const p=records.staffProfiles.find(p=>p.id===id);if(!p||!authReady||states.staffProfiles!=='ready'||dateState.get(id)?.busy)return;
@@ -101,6 +103,6 @@
     // Reuse an existing Google/anonymous session; never replace another tab's login.
     if(!signingIn){signingIn=true;auth.signInAnonymously().catch(err=>{$('status').hidden=false;$('status').className='status error';$('status').textContent='接続できませんでした。時間をおいて再度開いてください。';}).finally(()=>{signingIn=false;});}
   });
-  window.addEventListener('pagehide',()=>{authReady=false;stopAuth();stopData();unbindHistory();unbindStaff();ui.dispose();});
+  window.addEventListener('pagehide',()=>{authReady=false;stopAuth();stopData();unbindHistory();unbindStaff();unbindStaffLog();ui.dispose();});
   window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();
