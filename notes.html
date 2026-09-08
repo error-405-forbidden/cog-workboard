@@ -7,6 +7,7 @@
 <title>サイトメモ｜朝夕ボード</title>
 <meta name="robots" content="noindex, nofollow">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <style>
 :root{--bg:#f3f5f4;--surface:#fff;--soft:#f7f9f8;--ink:#22322e;--muted:#62726d;--line:#dbe3df;--accent:#176859;--accent-hover:#105446;--accent-soft:#e5f2ed;--shadow:0 8px 32px #193b2b0a;--radius:12px;color-scheme:light}
@@ -93,6 +94,7 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 var firebaseConfig={apiKey:"AIzaSyCWisNJZn0hktFP3pXof-DYau0LnnjQScQ",authDomain:"cog-workboard.firebaseapp.com",databaseURL:"https://cog-workboard-default-rtdb.firebaseio.com",projectId:"cog-workboard",storageBucket:"cog-workboard.firebasestorage.app",messagingSenderId:"779252971360",appId:"1:779252971360:web:7cf0a3a3bdca7b565e5005"};
 firebase.initializeApp(firebaseConfig);
 var rtdb=firebase.database();
+var authReady=false;
 var TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','その他'];
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function canonicalProject(tag){return tag==='共通・インフラ'?'共通/インフラ':String(tag||'その他');}
@@ -205,28 +207,36 @@ function bindHistoryEvents(){
 }
 function render(){document.getElementById('projectHeading').textContent=labelTag(currentProject);renderProjects();renderHistory();}
 render();
-rtdb.ref('siteMemos').on('value',function(snap){
- var val=snap.val()||{};
- notes=Object.keys(val).map(function(id){
-  var raw=val[id]||{};
-  return {id:id,projectTag:canonicalProject(raw.projectTag),text:typeof raw.text==='string'?raw.text:'',date:isoDay(raw.date)||noteCreatedDay(raw.createdAt),author:String(raw.author||'未設定'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
+function connectData(){
+ rtdb.ref('siteMemos').on('value',function(snap){
+  var val=snap.val()||{};
+  notes=Object.keys(val).map(function(id){
+   var raw=val[id]||{};
+   return {id:id,projectTag:canonicalProject(raw.projectTag),text:typeof raw.text==='string'?raw.text:'',date:isoDay(raw.date)||noteCreatedDay(raw.createdAt),author:String(raw.author||'未設定'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
+  });
+  hasData=true;
+  document.getElementById('status').hidden=true;
+  document.getElementById('layout').hidden=false;
+  render();
+ },function(err){
+  var s=document.getElementById('status');s.hidden=false;s.className='status error';s.textContent='読み込めませんでした。時間をおいて再度開いてください。('+(err&&err.message||'')+')';
  });
- hasData=true;
- document.getElementById('status').hidden=true;
- document.getElementById('layout').hidden=false;
- render();
-},function(err){
- var s=document.getElementById('status');s.hidden=false;s.className='status error';s.textContent='読み込めませんでした。時間をおいて再度開いてください。('+(err&&err.message||'')+')';
+ rtdb.ref('siteMemoComments').on('value',function(snap){
+  var val=snap.val()||{};
+  comments=Object.keys(val).map(function(id){
+   var raw=val[id]||{};
+   return {id:id,memoId:String(raw.memoId||''),text:typeof raw.text==='string'?raw.text:'',author:String(raw.author||'匿名'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
+  });
+  commentsHasData=true;
+  if(hasData)renderHistory();
+ },function(err){console.error('siteMemoComments load failed',err);});
+}
+firebase.auth().signInAnonymously().then(function(){
+ authReady=true;
+ connectData();
+}).catch(function(err){
+ var s=document.getElementById('status');s.hidden=false;s.className='status error';s.textContent='接続できませんでした。時間をおいて再度開いてください。('+(err&&err.message||'')+')';
 });
-rtdb.ref('siteMemoComments').on('value',function(snap){
- var val=snap.val()||{};
- comments=Object.keys(val).map(function(id){
-  var raw=val[id]||{};
-  return {id:id,memoId:String(raw.memoId||''),text:typeof raw.text==='string'?raw.text:'',author:String(raw.author||'匿名'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
- });
- commentsHasData=true;
- if(hasData)renderHistory();
-},function(err){console.error('siteMemoComments load failed',err);});
 </script>
 </body>
 </html>
