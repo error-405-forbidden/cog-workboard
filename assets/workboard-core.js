@@ -8,6 +8,7 @@
   W.isoDay = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : '';
   W.dateStr = (date = new Date()) => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
   W.createdDay = timestamp => { const d = new Date(timestamp); return Number.isNaN(d.getTime()) ? '' : W.dateStr(d); };
+  W.toMD = value => { const s = W.isoDay(value); return s ? Number(s.slice(5, 7)) + '/' + Number(s.slice(8, 10)) : ''; };
   W.equal = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
   W.failure = (code, message) => Object.assign(new Error(message), {code});
   W.message = err => err && ['conflict', 'missing'].includes(err.code) ? err.message : '保存できませんでした。入力内容は残っています。接続を確認して再度お試しください。';
