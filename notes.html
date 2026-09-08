@@ -43,6 +43,28 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 .project-note-text{font-size:16px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
 .note-empty{border:1px dashed var(--line);border-radius:10px;padding:30px 20px;text-align:center;color:var(--muted);font-size:14px}
 .note-empty strong{display:block;color:var(--ink);margin-bottom:6px}
+.note-actions{display:flex;gap:10px;margin-top:12px}
+.note-actions button{background:transparent;border:0;color:var(--accent);font-size:13px;font-weight:700;padding:4px 0;cursor:pointer}
+.note-actions button:hover{text-decoration:underline}
+.edit-form{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.edit-form textarea{width:100%;min-height:100px;font:inherit;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;resize:vertical}
+.edit-form-row{display:flex;gap:10px;flex-wrap:wrap}
+.edit-form-row input{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+.edit-form-row input[type=date]{width:150px}
+.edit-form-row input[type=text]{flex:1;min-width:120px}
+.edit-form-foot{display:flex;gap:8px;justify-content:flex-end}
+.edit-form-foot button{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.edit-form-foot button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.form-msg{font-size:12px;color:#a63333}
+.comments{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.comment{background:var(--soft);border-radius:8px;padding:10px 12px}
+.comment-head{display:flex;gap:8px;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:4px}
+.comment-head strong{color:var(--ink);font-size:13px}
+.comment-text{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.comment-form{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.comment-form input,.comment-form textarea{width:100%;font:inherit;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.comment-form textarea{min-height:70px;resize:vertical}
+.comment-form-foot{display:flex;justify-content:flex-end;gap:8px}
 @media(max-width:800px){.notes-layout{grid-template-columns:minmax(0,1fr);gap:16px}.notes-projects{display:none}.notes-mobile-picker{display:flex;flex-direction:column;gap:6px}.notes-mobile-picker select{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}.note-history{padding-left:17px;margin-left:5px}.project-note{padding:16px}.project-note::before{left:-24px}}
 </style>
 </head>
@@ -50,7 +72,7 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 <div class="shell">
 <header class="topbar">
  <div class="brand"><div class="brandmark">🗒</div><div><div class="brand-caption">COG / DAILY WORK</div><h1>朝夕ボード</h1></div></div>
- <div class="view-badge">サイトメモ（閲覧専用）</div>
+ <div class="view-badge">サイトメモ（このリンクを知っている人は誰でも閲覧・編集・コメントできます）</div>
 </header>
 <div class="status" id="status">読み込み中…</div>
 <div class="notes-layout" id="layout" hidden>
@@ -77,9 +99,34 @@ function canonicalProject(tag){return tag==='共通・インフラ'?'共通/イ�
 function labelTag(tag){return tag==='共通/インフラ'?'共通・インフラ':tag;}
 function isoDay(v){if(typeof v!=='string')return null;var m=v.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:null;}
 function noteCreatedDay(ts){var d=new Date(ts);return isNaN(d.getTime())?'':d.toISOString().slice(0,10);}
-var notes=[],currentProject='ジムセレ',hasData=false;
+var notes=[],comments=[],currentProject='ジムセレ',hasData=false,commentsHasData=false;
+var editingId=null,editDraft={};
+var openCommentId=null,commentDrafts={};
 function getProjects(){var set={};TAGS.forEach(function(t){set[t]=true;});notes.forEach(function(n){set[n.projectTag]=true;});set[currentProject]=true;return Object.keys(set);}
 function projectNotes(project){var list=notes.filter(function(n){return n.projectTag===canonicalProject(project);});list.sort(function(a,b){return (String(b.date).localeCompare(String(a.date)))||b.createdAt.localeCompare(a.createdAt);});return list;}
+function commentsFor(memoId){var list=comments.filter(function(c){return c.memoId===memoId;});list.sort(function(a,b){return a.createdAt.localeCompare(b.createdAt);});return list;}
+function startEdit(n){editingId=n.id;editDraft={text:n.text,date:n.date,author:n.author,msg:''};renderHistory();}
+function cancelEdit(){editingId=null;editDraft={};renderHistory();}
+function saveEdit(id){
+ var d=editDraft;
+ if(!d.text||!d.text.trim()){editDraft.msg='本文を入力してください。';renderHistory();return;}
+ rtdb.ref('siteMemos/'+id).update({text:d.text.trim(),date:d.date||'',author:(d.author||'').trim()||'未設定'}).then(function(){
+  editingId=null;editDraft={};renderHistory();
+ }).catch(function(err){
+  editDraft.msg='保存できませんでした。('+(err&&err.message||'')+')';renderHistory();
+ });
+}
+function openComment(memoId){openCommentId=memoId;if(!commentDrafts[memoId])commentDrafts[memoId]={text:'',author:'',msg:''};renderHistory();}
+function closeComment(){openCommentId=null;renderHistory();}
+function submitComment(memoId){
+ var d=commentDrafts[memoId]||{};
+ if(!d.text||!d.text.trim()){d.msg='コメントを入力してください。';renderHistory();return;}
+ rtdb.ref('siteMemoComments').push({memoId:memoId,text:d.text.trim(),author:(d.author||'').trim()||'匿名',createdAt:new Date().toISOString()}).then(function(){
+  delete commentDrafts[memoId];openCommentId=null;renderHistory();
+ }).catch(function(err){
+  d.msg='送信できませんでした。('+(err&&err.message||'')+')';renderHistory();
+ });
+}
 function renderProjects(){
  var projects=getProjects();
  var listEl=document.getElementById('projectList');listEl.innerHTML='';
@@ -95,6 +142,28 @@ function renderProjects(){
  selectEl.value=currentProject;
 }
 document.getElementById('projectSelect').addEventListener('change',function(e){currentProject=e.target.value;render();});
+function renderCommentThread(memoId){
+ var list=commentsFor(memoId);
+ var html='<div class="comments">';
+ html+=list.map(function(c){
+  var day=noteCreatedDay(c.createdAt);
+  return '<div class="comment"><div class="comment-head"><strong>'+esc(c.author)+'</strong><span>'+esc(day)+'</span></div><div class="comment-text">'+esc(c.text)+'</div></div>';
+ }).join('');
+ if(!commentsHasData&&!list.length){html+='<div style="font-size:12px;color:var(--muted)">コメントを読み込み中…</div>';}
+ if(openCommentId===memoId){
+  var d=commentDrafts[memoId]||{text:'',author:''};
+  html+='<div class="comment-form">'
+   +'<input type="text" data-role="c-author" placeholder="お名前" value="'+esc(d.author)+'">'
+   +'<textarea data-role="c-text" placeholder="コメントを入力">'+esc(d.text)+'</textarea>'
+   +(d.msg?'<div class="form-msg">'+esc(d.msg)+'</div>':'')
+   +'<div class="comment-form-foot"><button type="button" class="edit-form-foot-cancel" data-action="comment-cancel">キャンセル</button><button type="button" class="primary" data-action="comment-save" data-id="'+esc(memoId)+'" style="background:var(--accent);color:#fff;border:0;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700">送信</button></div>'
+   +'</div>';
+ }else{
+  html+='<div class="note-actions"><button type="button" data-action="comment-open" data-id="'+esc(memoId)+'">コメントする</button></div>';
+ }
+ html+='</div>';
+ return html;
+}
 function renderHistory(){
  var list=projectNotes(currentProject);
  var el=document.getElementById('history');
@@ -103,8 +172,36 @@ function renderHistory(){
  el.innerHTML='<div class="note-history">'+list.map(function(n){
   var created=noteCreatedDay(n.createdAt),recorded='';
   if(created&&created!==n.date)recorded='<p style="font-size:12px;color:var(--muted);margin-top:12px">追記日：'+esc(created)+'</p>';
-  return '<article class="project-note"><div class="project-note-head"><time datetime="'+esc(n.date)+'">'+esc(n.date||'日付未設定')+'</time><span>'+esc(n.author)+'</span></div><p class="project-note-text">'+esc(n.text)+'</p>'+recorded+'</article>';
+  var body;
+  if(editingId===n.id){
+   var d=editDraft;
+   body='<div class="edit-form">'
+    +'<div class="edit-form-row"><input type="date" data-role="e-date" value="'+esc(d.date||'')+'"><input type="text" data-role="e-author" placeholder="記入者" value="'+esc(d.author||'')+'"></div>'
+    +'<textarea data-role="e-text">'+esc(d.text||'')+'</textarea>'
+    +(d.msg?'<div class="form-msg">'+esc(d.msg)+'</div>':'')
+    +'<div class="edit-form-foot"><button type="button" data-action="edit-cancel">キャンセル</button><button type="button" class="primary" data-action="edit-save" data-id="'+esc(n.id)+'">保存</button></div>'
+    +'</div>';
+  }else{
+   body='<p class="project-note-text">'+esc(n.text)+'</p>'+recorded
+    +'<div class="note-actions"><button type="button" data-action="edit-open" data-id="'+esc(n.id)+'">編集</button></div>';
+  }
+  return '<article class="project-note"><div class="project-note-head"><time datetime="'+esc(n.date)+'">'+esc(n.date||'日付未設定')+'</time><span>'+esc(n.author)+'</span></div>'+body+renderCommentThread(n.id)+'</article>';
  }).join('')+'</div>';
+ bindHistoryEvents();
+}
+function bindHistoryEvents(){
+ var el=document.getElementById('history');
+ el.querySelectorAll('[data-action=edit-open]').forEach(function(b){b.addEventListener('click',function(){var n=notes.find(function(x){return x.id===b.dataset.id;});if(n)startEdit(n);});});
+ el.querySelectorAll('[data-action=edit-cancel]').forEach(function(b){b.addEventListener('click',cancelEdit);});
+ el.querySelectorAll('[data-action=edit-save]').forEach(function(b){b.addEventListener('click',function(){saveEdit(b.dataset.id);});});
+ el.querySelectorAll('[data-role=e-text]').forEach(function(t){t.addEventListener('input',function(){editDraft.text=t.value;});});
+ el.querySelectorAll('[data-role=e-date]').forEach(function(t){t.addEventListener('input',function(){editDraft.date=t.value;});});
+ el.querySelectorAll('[data-role=e-author]').forEach(function(t){t.addEventListener('input',function(){editDraft.author=t.value;});});
+ el.querySelectorAll('[data-action=comment-open]').forEach(function(b){b.addEventListener('click',function(){openComment(b.dataset.id);});});
+ el.querySelectorAll('[data-action=comment-cancel]').forEach(function(b){b.addEventListener('click',closeComment);});
+ el.querySelectorAll('[data-action=comment-save]').forEach(function(b){b.addEventListener('click',function(){submitComment(b.dataset.id);});});
+ el.querySelectorAll('[data-role=c-text]').forEach(function(t){t.addEventListener('input',function(){var id=openCommentId;if(id&&commentDrafts[id])commentDrafts[id].text=t.value;});});
+ el.querySelectorAll('[data-role=c-author]').forEach(function(t){t.addEventListener('input',function(){var id=openCommentId;if(id&&commentDrafts[id])commentDrafts[id].author=t.value;});});
 }
 function render(){document.getElementById('projectHeading').textContent=labelTag(currentProject);renderProjects();renderHistory();}
 render();
@@ -121,6 +218,15 @@ rtdb.ref('siteMemos').on('value',function(snap){
 },function(err){
  var s=document.getElementById('status');s.hidden=false;s.className='status error';s.textContent='読み込めませんでした。時間をおいて再度開いてください。('+(err&&err.message||'')+')';
 });
+rtdb.ref('siteMemoComments').on('value',function(snap){
+ var val=snap.val()||{};
+ comments=Object.keys(val).map(function(id){
+  var raw=val[id]||{};
+  return {id:id,memoId:String(raw.memoId||''),text:typeof raw.text==='string'?raw.text:'',author:String(raw.author||'匿名'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
+ });
+ commentsHasData=true;
+ if(hasData)renderHistory();
+},function(err){console.error('siteMemoComments load failed',err);});
 </script>
 </body>
 </html>
