@@ -3,7 +3,8 @@ const root=path.resolve(__dirname,'..');
 for(const page of ['index','notes']){
  const source=fs.readFileSync(path.join(root,page+'.html'),'utf8');
  const ids=[...source.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,page+' duplicate id');
- for(const m of source.matchAll(/(?:src|href)="([^"#]+)"/g)){if(/^(?:https?:|data:)/.test(m[1]))continue;assert(fs.existsSync(path.resolve(root,m[1])),page+' missing asset '+m[1]);}
+ // A cache-busting "?v=..." query string is expected on our own local assets; strip it before checking the file exists.
+ for(const m of source.matchAll(/(?:src|href)="([^"#]+)"/g)){if(/^(?:https?:|data:)/.test(m[1]))continue;const file=m[1].split('?')[0];assert(fs.existsSync(path.resolve(root,file)),page+' missing asset '+m[1]);}
  const app=fs.readFileSync(path.join(root,'assets',page+'-app.js'),'utf8');
  const refs=[...app.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]);
  const dynamic=new Set(['staffNextDate']);
