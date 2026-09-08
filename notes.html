@@ -95,7 +95,7 @@ var firebaseConfig={apiKey:"AIzaSyCWisNJZn0hktFP3pXof-DYau0LnnjQScQ",authDomain:
 firebase.initializeApp(firebaseConfig);
 var rtdb=firebase.database();
 var authReady=false;
-var TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','その他'];
+var TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','外注依頼','その他'];
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function canonicalProject(tag){return tag==='共通・インフラ'?'共通/インフラ':String(tag||'その他');}
 function labelTag(tag){return tag==='共通/インフラ'?'共通・インフラ':tag;}
