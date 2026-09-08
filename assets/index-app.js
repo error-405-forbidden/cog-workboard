@@ -26,7 +26,7 @@ const age=t=>t.createdAt?Math.max(1,dayDiff(t.createdAt,dateStr())+1):1;
 const oneLine=s=>String(s||'').replace(/[\r\n\u2028\u2029]+/g,' ').trim();
 let db=null,tasks=[],ready=false,hasData=false,scope='mine',mobileStatus='todo',me='',qaTags=[],qaType='single',boardDate=dateStr();
 let editBase=null,editId=null,editInitial=null,editTags=[],editBusy=false,qaBusy=false,connectGeneration=0,unsubscribe=null,taskTimer=null,toastTimer,returnFocus;
-let siteNotes=[],notesReady=false,notesHasData=false,noteBusy=false,noteProject=TAGS[0],notesUnsubscribe=null,notesGeneration=0,notesTimer=null;
+let siteNotes=[],notesReady=false,notesHasData=false,noteBusy=false,noteProject=TAGS[0],notesUnsubscribe=null,notesGeneration=0,notesTimer=null,noteProjectPicked=false;
 const noteDrafts=new Map();
 try{me=(localStorage.getItem('wb_me')||'').trim();}catch(e){}
 // "Unseen" project tracking (per-browser, shared with notes.html via the same
@@ -199,7 +199,12 @@ function renderNoteProjects(){
  // already seen so the whole history doesn't light up at once — only activity
  // from here on should flag anything.
  if(!seenBootstrapped&&notesHasData&&commentsReady){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;saveSeen();markBootstrapped();}
- const projects=getNoteProjects();$('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;
+ const projects=getNoteProjects();
+ // Before the user has ever picked a project themselves, default to whichever
+ // one is actually most relevant (top of the recency sort) instead of always
+ // ジムセレ — otherwise the sort order and the default selection disagree.
+ if(!noteProjectPicked&&notesHasData&&projects.length){noteProject=projects[0];noteProjectPicked=true;}
+ $('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;
  // Stays flagged until you open the project (markSeen in renderNoteHistory), not
  // for a fixed number of days — a triangle at the row's left edge since the list
  // is too narrow for badge text without wrapping.
@@ -219,7 +224,7 @@ function renderNoteHistory(force=false){
  // sidebar doesn't wait for the next unrelated render to catch up.
  if(currentView==='notes'){const before=seenActivity[noteProject];markSeen(noteProject,projectActivity());if(seenActivity[noteProject]!==before)renderNoteProjects();}
 }
-function renderNotes(){$('notesProjectHeading').textContent=labelTag(noteProject);renderNoteProjects();renderNoteHistory();}
+function renderNotes(){renderNoteProjects();$('notesProjectHeading').textContent=labelTag(noteProject);renderNoteHistory();}
 function notesState(state,message){notesReady=state==='ready';$('notesStatus').hidden=notesReady;$('notesStatus').className='notes-status'+(state==='error'?' error':'');$('notesStatusText').textContent=message||'サイトメモを読み込み中…';$('notesRetry').hidden=state!=='error';$('noteHistory').setAttribute('aria-busy',String(state==='loading'));syncNoteControls();}
 function stopNotes(){clearTimeout(commentsTimer);if(commentsUnsubscribe)commentsUnsubscribe();commentsUnsubscribe=null;commentsReady=false;commentsFailed=false;++notesGeneration;clearTimeout(notesTimer);if(typeof notesUnsubscribe==='function'){try{notesUnsubscribe();}catch(e){}}notesUnsubscribe=null;notesState('loading');}
 function connectNotes(connection){stopNotes();const generation=notesGeneration;let receivedLive=false;const onError=()=>{if(generation!==notesGeneration)return;receivedLive=true;clearTimeout(notesTimer);notesState('error','サイトメモを読み込めませんでした。表示中の記録が最新でない可能性があります。入力内容は残っています。');};

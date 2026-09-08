@@ -7,7 +7,7 @@
   const records=Object.fromEntries(collections.map(key=>[key,[]]));
   const states=Object.fromEntries(collections.map(key=>[key,'loading']));
   const disposers=[], dateTimers=new Map(), dateState=new Map();
-  let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest';
+  let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest', currentProjectPicked=false;
   let ui, unbindHistory, unbindStaff, unbindStaffLog;
   // "Unseen" project tracking (per-browser, shared with index.html via the same
   // localStorage key/origin): a project stays flagged until you actually open it,
@@ -48,6 +48,10 @@
     // already seen so the whole history doesn't light up at once.
     if(!seenBootstrapped&&states.siteMemos==='ready'&&states.siteMemoComments==='ready'){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;saveSeen();markBootstrapped();}
     const projects=W.sortProjects([...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))],activity);
+    // Before the user has ever picked a project themselves, default to whichever
+    // one is actually most relevant (top of the recency sort) instead of always
+    // ジムセレ — otherwise the sort order and the default selection disagree.
+    if(!currentProjectPicked&&states.siteMemos==='ready'&&projects.length){currentProject=projects[0];currentProjectPicked=true;}
     $('projectList').replaceChildren();$('projectSelect').replaceChildren();
     projects.forEach(tag=>{
       const count=records.siteMemos.filter(n=>n.projectTag===tag).length;
@@ -72,7 +76,7 @@
     // the next unrelated render to catch up.
     if(currentView==='notes'){const before=seenActivity[currentProject];markSeen(currentProject,projectActivity());if(seenActivity[currentProject]!==before)renderProjects();}
   }
-  function render(force=false){$('projectHeading').textContent=W.labelTag(currentProject);renderProjects();renderHistory(force);}
+  function render(force=false){renderProjects();$('projectHeading').textContent=W.labelTag(currentProject);renderHistory(force);}
   function chooseStaff(id){currentStaffId=id;ui.resetConfirmation();renderStaff(true);}
   function renderStaffList(){
     const list=records.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'));
