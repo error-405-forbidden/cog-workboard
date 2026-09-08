@@ -15,7 +15,7 @@
   }
   // One editor/composer implementation for memos, profiles, staff logs and replies.
   W.createRecordsUI = options => {
-    const editors = new Map(), composers = new Map(), errors = new Map(), deleting = new Set(), expandedThreads = new Set();
+    const editors = new Map(), composers = new Map(), errors = new Map(), deleting = new Set(), expandedThreads = new Set(), expandedText = new Set();
     let disposed = false;
     const changed = (force = false) => { if (!disposed) options.render(force); };
     const canWrite = collection => !disposed && options.canWrite(collection);
@@ -85,6 +85,14 @@
       catch (err) { errors.set(id, W.message(err)); }
       finally { deleting.delete(id); changed(); }
     }
+    async function removeStaff(id) {
+      if (!canWrite('staffProfiles') || deleting.has(id)) return;
+      if (!arm.press(id)) return;
+      deleting.add(id); errors.delete(id); changed(true);
+      try { await options.db().doc('staffProfiles/'+id).delete(); editors.delete(key('staff', id)); }
+      catch (err) { errors.set(id, W.message(err)); }
+      finally { deleting.delete(id); changed(); }
+    }
     function form(kind, id) {
       const item = editors.get(key(kind, id)); if (!item) return '';
       const definition = definitions[kind];
@@ -97,17 +105,26 @@
       const missing = !getRecord(definition.collection, id);
       return '<div class="edit-form" data-draft-key="'+E(key(kind,id))+'" data-draft-version="'+item.version+'">'+(rows.length?'<div class="edit-form-row">'+rows.map(field).join('')+'</div>':'')+rest.map(field).join('')+(missing?'<div class="form-msg">この記録は削除されています。入力内容を控えてから閉じてください。</div>':'')+(item.msg?'<div class="form-msg" role="alert">'+E(item.msg)+'</div>':'')+'<div class="edit-form-foot">'+button('cancel',kind,id,'キャンセル',false,item.busy)+button('save',kind,id,item.busy?'保存中…':'保存',true,disabled||missing)+'</div></div>';
     }
-    const THREAD_COLLAPSE_AT = 10;
+    const THREAD_COLLAPSE_AT = 10, TEXT_COLLAPSE_AT = 20;
     function expandThread(kind, id) { expandedThreads.add(key(kind, id)); changed(true); }
+    function expandText(kind, id) { expandedText.add(key(kind, id)); changed(true); }
+    function collapseText(kind, id) { expandedText.delete(key(kind, id)); changed(true); }
+    function moreButton(kind, id, remaining) { return '<div class="note-actions">'+button('thread-more',kind,id,'さらに表示（残り'+remaining+'件）')+'</div>'; }
+    // Long memo/log bodies collapse to a short preview; each entry tracks its own expanded state.
+    function truncatedBody(kind, id, text) {
+      const long = text.length > TEXT_COLLAPSE_AT, expanded = expandedText.has(key(kind, id));
+      const shown = long && !expanded ? text.slice(0, TEXT_COLLAPSE_AT)+'…' : text;
+      return E(shown)+(long?' '+button(expanded?'text-less':'text-more',kind,id,expanded?'閉じる':'続きを見る'):'');
+    }
     function thread(kind, parentId) {
       const config = threads[kind], full = W.sortThread(options.records(config.collection).filter(r => r[config.foreignKey] === parentId));
       const tk = key(kind, parentId), collapsed = full.length > THREAD_COLLAPSE_AT && !expandedThreads.has(tk);
       const list = collapsed ? full.slice(-THREAD_COLLAPSE_AT) : full;
       let html = '<div class="comments">'
-        +(collapsed ? '<div class="note-actions">'+button('thread-more',kind,parentId,'さらに表示（残り'+(full.length-list.length)+'件）')+'</div>' : '')
+        +(collapsed ? moreButton(kind,parentId,full.length-list.length) : '')
         +list.map(c => {
         if (kind==='staffnote' && editors.has(key('log',c.id))) return '<div class="comment">'+form('log',c.id)+'</div>';
-        return '<div class="comment"><div class="comment-head"><strong>'+E(c.author)+'</strong><span>'+E(W.createdDay(c.createdAt))+'</span></div><div class="comment-text">'+E(c.text)+'</div>'+(kind==='staffnote'?'<div class="note-actions">'+button('edit','log',c.id,'編集',false,!canWrite(config.collection))+button('delete','log',c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</div>':'')+(errors.has(c.id)?'<div class="form-msg" role="alert">'+E(errors.get(c.id))+'</div>':'')+'</div>';
+        return '<div class="comment"><div class="comment-head"><strong>'+E(c.author)+'</strong><span>'+E(W.createdDay(c.createdAt))+'</span></div><div class="comment-text">'+truncatedBody(kind,c.id,c.text)+'</div>'+(kind==='staffnote'?'<div class="note-actions">'+button('edit','log',c.id,'編集',false,!canWrite(config.collection))+button('delete','log',c.id,arm.isArmed(c.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(c.id)||!canWrite(config.collection))+'</div>':'')+(errors.has(c.id)?'<div class="form-msg" role="alert">'+E(errors.get(c.id))+'</div>':'')+'</div>';
       }).join('');
       // A remotely deleted record must not silently discard an open edit draft.
       for (const item of editors.values()) if (item.kind==='log' && kind==='staffnote' && item.record.staffId===parentId && !getRecord('staffNotes',item.id)) html += '<div class="comment">'+form('log',item.id)+'</div>';
@@ -122,7 +139,7 @@
     }
     function memo(record) {
       const created = W.createdDay(record.createdAt), recorded = created && created!==record.date ? '<p class="note-recorded">追記日：'+E(created)+'</p>' : '';
-      const body = editors.has(key('memo',record.id)) ? form('memo',record.id) : '<p class="project-note-text">'+E(record.text)+'</p>'+recorded+'<div class="note-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+'</div>';
+      const body = editors.has(key('memo',record.id)) ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded+'<div class="note-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+'</div>';
       return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span></div>'+body+thread('comment',record.id)+'</article>';
     }
     function orphanMemos(project) {
@@ -147,17 +164,23 @@
         else if (action==='compose') openComposer(kind,id);
         else if (action==='submit') void submit(kind,id);
         else if (action==='compose-cancel') { const item=composers.get(key(kind,id));if(item&&!item.busy){item.open=false;changed(true);} }
-        else if (action==='delete') void removeLog(id);
+        else if (action==='delete') { if (kind==='staff') void removeStaff(id); else void removeLog(id); }
         else if (action==='thread-more') expandThread(kind,id);
+        else if (action==='text-more') expandText(kind,id);
+        else if (action==='text-less') collapseText(kind,id);
       };
       root.addEventListener('input',onInput); root.addEventListener('change',onInput); root.addEventListener('click',onClick);
       return () => { root.removeEventListener('input',onInput);root.removeEventListener('change',onInput);root.removeEventListener('click',onClick); };
     }
-    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,expandThread,
+    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,expandThread,expandText,collapseText,moreButton,
       hasEditor:(kind,id)=>editors.has(key(kind,id)),
       editingRecord:(kind,id)=>editors.get(key(kind,id))?.record,
       resetConfirmation:()=>arm.reset(),
-      dispose:()=>{disposed=true;arm.dispose();editors.clear();composers.clear();errors.clear();expandedThreads.clear();},
+      isArmed:id=>arm.isArmed(id),
+      isDeleting:id=>deleting.has(id),
+      errorFor:id=>errors.get(id),
+      isThreadExpanded:(kind,id)=>expandedThreads.has(key(kind,id)),
+      dispose:()=>{disposed=true;arm.dispose();editors.clear();composers.clear();errors.clear();expandedThreads.clear();expandedText.clear();},
       // Exposed read-only references are useful to dependency-free unit tests.
       drafts:editors,composers
     };

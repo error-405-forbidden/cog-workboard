@@ -40,8 +40,9 @@
   }
   $('projectSelect').addEventListener('change',e=>chooseProject(e.target.value));
   function renderHistory(force=false){
-    const list=W.sortMemos(records.siteMemos.filter(n=>n.projectTag===currentProject));
-    const content=list.map(n=>ui.memo(n)).join('')+ui.orphanMemos(currentProject);
+    const full=W.sortMemos(records.siteMemos.filter(n=>n.projectTag===currentProject));
+    const collapsed=full.length>10&&!ui.isThreadExpanded('memolist',currentProject),list=collapsed?full.slice(0,10):full;
+    const content=(collapsed?ui.moreButton('memolist',currentProject,full.length-list.length):'')+list.map(n=>ui.memo(n)).join('')+ui.orphanMemos(currentProject);
     W.replaceContent($('history'), content?'<div class="note-history">'+content+'</div>':'<div class="note-empty">'+(states.siteMemos==='ready'?'<strong>まだ記録はありません</strong>':'読み込み中です…')+'</div>',!force);
   }
   function render(force=false){$('projectHeading').textContent=W.labelTag(currentProject);renderProjects();renderHistory(force);}

@@ -182,9 +182,10 @@ function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();noteProje
 $('notesProjectSelect').addEventListener('change',e=>chooseNoteProject(e.target.value));$('noteText').addEventListener('input',saveNoteDraft);$('noteDate').addEventListener('input',saveNoteDraft);$('noteSort').addEventListener('change',renderNoteHistory);
 function renderNoteProjects(){const projects=getNoteProjects();$('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;const b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(tag===noteProject));b.innerHTML='<span class="project-name">'+esc(labelTag(tag))+'</span><span class="project-count">'+(notesHasData?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseNoteProject(tag));$('notesProjects').append(b);const option=document.createElement('option');option.value=tag;option.textContent=labelTag(tag)+(notesHasData?'（'+count+'件）':'');$('notesProjectSelect').append(option);});$('notesProjectSelect').value=noteProject;syncNoteControls();}
 function renderNoteHistory(force=false){
- const list=projectNotes(noteProject,$('noteSort').value);$('noteHistoryHeading').textContent='これまでの記録'+(notesHasData?'（'+list.length+'件）':'');
+ const full=projectNotes(noteProject,$('noteSort').value);$('noteHistoryHeading').textContent='これまでの記録'+(notesHasData?'（'+full.length+'件）':'');
  if(!notesUI)return;
- const content=list.map(n=>notesUI.memo(n)).join('')+notesUI.orphanMemos(noteProject);
+ const collapsed=full.length>10&&!notesUI.isThreadExpanded('memolist',noteProject),list=collapsed?full.slice(0,10):full;
+ const content=(collapsed?notesUI.moreButton('memolist',noteProject,full.length-list.length):'')+list.map(n=>notesUI.memo(n)).join('')+notesUI.orphanMemos(noteProject);
  $('noteHistory').className=content?'note-history':'';
  W.replaceContent($('noteHistory'),content||'<div class="note-empty">'+(notesHasData?'<strong>まだ記録はありません</strong>最初の申し送りや、これまでの経緯を追記してください。':'接続後に、この案件の記録が表示されます。')+'</div>',!force);
 }
