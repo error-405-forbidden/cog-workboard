@@ -105,16 +105,17 @@
       const missing = !getRecord(definition.collection, id);
       return '<div class="edit-form" data-draft-key="'+E(key(kind,id))+'" data-draft-version="'+item.version+'">'+(rows.length?'<div class="edit-form-row">'+rows.map(field).join('')+'</div>':'')+rest.map(field).join('')+(missing?'<div class="form-msg">この記録は削除されています。入力内容を控えてから閉じてください。</div>':'')+(item.msg?'<div class="form-msg" role="alert">'+E(item.msg)+'</div>':'')+'<div class="edit-form-foot">'+button('cancel',kind,id,'キャンセル',false,item.busy)+button('save',kind,id,item.busy?'保存中…':'保存',true,disabled||missing)+'</div></div>';
     }
-    const THREAD_COLLAPSE_AT = 10, TEXT_COLLAPSE_AT = 20;
+    const THREAD_COLLAPSE_AT = 10, TEXT_COLLAPSE_AT = 60;
     function expandThread(kind, id) { expandedThreads.add(key(kind, id)); changed(true); }
     function expandText(kind, id) { expandedText.add(key(kind, id)); changed(true); }
     function collapseText(kind, id) { expandedText.delete(key(kind, id)); changed(true); }
     function moreButton(kind, id, remaining) { return '<div class="note-actions">'+button('thread-more',kind,id,'さらに表示（残り'+remaining+'件）')+'</div>'; }
-    // Long memo/log bodies collapse to a short preview; each entry tracks its own expanded state.
+    // Long memo/log bodies clamp to two lines via CSS (word/line-boundary aware,
+    // unlike a fixed character cut) with a 続きを見る toggle; each entry tracks its own state.
     function truncatedBody(kind, id, text) {
       const long = text.length > TEXT_COLLAPSE_AT, expanded = expandedText.has(key(kind, id));
-      const shown = long && !expanded ? text.slice(0, TEXT_COLLAPSE_AT)+'…' : text;
-      return E(shown)+(long?' '+button(expanded?'text-less':'text-more',kind,id,expanded?'閉じる':'続きを見る'):'');
+      const span = '<span'+(long && !expanded ? ' class="text-clamp"' : '')+'>'+E(text)+'</span>';
+      return span+(long?' '+button(expanded?'text-less':'text-more',kind,id,expanded?'閉じる':'続きを見る'):'');
     }
     function thread(kind, parentId) {
       const config = threads[kind], full = W.sortThread(options.records(config.collection).filter(r => r[config.foreignKey] === parentId));

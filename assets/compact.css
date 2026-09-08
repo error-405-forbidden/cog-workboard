@@ -45,6 +45,8 @@ dialog .sheet-foot{padding:10px 16px}
    OS-styled button because it had no class of its own). */
 [data-wb-action="text-more"],[data-wb-action="text-less"]{background:transparent;border:0;color:var(--accent);font-size:13px;font-weight:700;padding:0;margin-left:4px;cursor:pointer;vertical-align:baseline}
 [data-wb-action="text-more"]:hover,[data-wb-action="text-less"]:hover{text-decoration:underline}
+/* Two-line clamp respects word/line boundaries, unlike a fixed character cut. */
+.text-clamp{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 @media(max-width:640px){
   .topbar{min-height:auto}
   .quickadd{padding:12px}
