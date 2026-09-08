@@ -162,7 +162,7 @@ var fsdb={collection:rtdbCollection,doc:rtdbDoc};
 
 const COLUMNS=[{key:'todo',label:'未着手',short:'未着手',color:'var(--blue)'},{key:'doing',label:'進行中',short:'進行中',color:'var(--accent)'},{key:'waiting',label:'保留（待ち）',short:'保留',color:'var(--amber)'},{key:'done',label:'完了',short:'完了',color:'var(--green)'},{key:'cancelled',label:'中止',short:'中止',color:'var(--muted)'}];
 const QUICK_STATUS=[{key:'doing',label:'進行中'},{key:'done',label:'完了'},{key:'waiting',label:'保留'},{key:'cancelled',label:'中止'}];
-const TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','外注依頼','その他'];
+const TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','その他'];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');

@@ -22,11 +22,17 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 .brandmark{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:var(--surface);border-radius:12px;font-weight:900}
 .brand-caption{font-size:12px;color:var(--muted);letter-spacing:.13em}
 .view-badge{font-size:13px;color:var(--accent);background:var(--accent-soft);padding:5px 10px;border-radius:6px;white-space:nowrap}
+.view-nav{display:flex;gap:8px;margin-top:22px;border-bottom:1px solid var(--line)}
+.view-nav button{background:transparent;border:0;min-height:44px;padding:9px 16px;color:var(--muted);font-weight:700;border-bottom:3px solid transparent;font-size:15px}
+.view-nav button[aria-pressed=true]{color:var(--accent);border-bottom-color:var(--accent)}
+.view-nav button:hover{background:var(--accent-soft)}
 .status{margin:22px 0;padding:12px 14px;border-radius:8px;background:var(--soft);color:var(--muted);font-size:14px}
 .status.error{background:#fff0ee;color:#a63333}
 .notes-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;align-items:start;margin-top:22px}
 .notes-projects{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:10px}
-.notes-projects h3{font-size:13px;color:var(--muted);padding:6px 10px 10px}
+.notes-projects-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px 10px}
+.notes-projects-head h3{font-size:13px;color:var(--muted)}
+.notes-projects-head button{background:transparent;border:0;color:var(--accent);font-size:18px;line-height:1;padding:0 4px;font-weight:900}
 .project-list{display:flex;flex-direction:column;gap:5px}
 .project-button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;padding:12px 10px;border-radius:7px;font-size:14px;min-height:44px}
 .project-button[aria-pressed=true]{color:var(--accent);background:var(--accent-soft);font-weight:700}
@@ -66,6 +72,10 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 .comment-form input,.comment-form textarea{width:100%;font:inherit;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .comment-form textarea{min-height:70px;resize:vertical}
 .comment-form-foot{display:flex;justify-content:flex-end;gap:8px}
+.staff-profile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 22px}
+.staff-name{font-size:20px;font-weight:700;margin-bottom:10px;overflow-wrap:anywhere}
+.staff-updated{font-size:12px;color:var(--muted);margin-top:12px}
+.staff-log-heading{font-size:14px;color:var(--muted);margin:24px 0 12px}
 @media(max-width:800px){.notes-layout{grid-template-columns:minmax(0,1fr);gap:16px}.notes-projects{display:none}.notes-mobile-picker{display:flex;flex-direction:column;gap:6px}.notes-mobile-picker select{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px}.note-history{padding-left:17px;margin-left:5px}.project-note{padding:16px}.project-note::before{left:-24px}}
 </style>
 </head>
@@ -73,12 +83,17 @@ button,select{font:inherit;color:inherit;cursor:pointer}
 <div class="shell">
 <header class="topbar">
  <div class="brand"><div class="brandmark">🗒</div><div><div class="brand-caption">COG / DAILY WORK</div><h1>朝夕ボード</h1></div></div>
- <div class="view-badge">サイトメモ（このリンクを知っている人は誰でも閲覧・編集・コメントできます）</div>
+ <div class="view-badge">このリンクを知っている人は誰でも閲覧・編集・コメントできます</div>
 </header>
+<nav class="view-nav">
+ <button type="button" id="navNotes" aria-pressed="true">サイトメモ</button>
+ <button type="button" id="navStaff" aria-pressed="false">外注さん</button>
+</nav>
 <div class="status" id="status">読み込み中…</div>
-<div class="notes-layout" id="layout" hidden>
+
+<div class="notes-layout" id="notesView" hidden>
  <div class="notes-projects" aria-hidden="true">
-  <h3>案件</h3>
+  <div class="notes-projects-head"><h3>案件</h3></div>
   <div class="project-list" id="projectList"></div>
  </div>
  <div class="notes-main">
@@ -89,18 +104,47 @@ button,select{font:inherit;color:inherit;cursor:pointer}
   <div id="history"></div>
  </div>
 </div>
+
+<div class="notes-layout" id="staffView" hidden>
+ <div class="notes-projects" aria-hidden="true">
+  <div class="notes-projects-head"><h3>外注さん</h3><button type="button" id="staffAdd" title="新しく追加">＋</button></div>
+  <div class="project-list" id="staffList"></div>
+ </div>
+ <div class="notes-main">
+  <div class="notes-mobile-picker">
+   <select id="staffSelect" aria-label="外注さんを選択"></select>
+  </div>
+  <div id="staffDetail"></div>
+ </div>
+</div>
+
 </div>
 <script>
 var firebaseConfig={apiKey:"AIzaSyCWisNJZn0hktFP3pXof-DYau0LnnjQScQ",authDomain:"cog-workboard.firebaseapp.com",databaseURL:"https://cog-workboard-default-rtdb.firebaseio.com",projectId:"cog-workboard",storageBucket:"cog-workboard.firebasestorage.app",messagingSenderId:"779252971360",appId:"1:779252971360:web:7cf0a3a3bdca7b565e5005"};
 firebase.initializeApp(firebaseConfig);
 var rtdb=firebase.database();
 var authReady=false;
-var TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','外注依頼','その他'];
+var TAGS=['ジムセレ','買取サファリ','金融メディアサイト群','自社サイト','共通/インフラ','その他'];
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function canonicalProject(tag){return tag==='共通・インフラ'?'共通/インフラ':String(tag||'その他');}
 function labelTag(tag){return tag==='共通/インフラ'?'共通・インフラ':tag;}
 function isoDay(v){if(typeof v!=='string')return null;var m=v.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:null;}
 function noteCreatedDay(ts){var d=new Date(ts);return isNaN(d.getTime())?'':d.toISOString().slice(0,10);}
+
+/* ---------- view switching ---------- */
+var currentView='notes';
+function showView(view){
+ currentView=view;
+ document.getElementById('navNotes').setAttribute('aria-pressed',String(view==='notes'));
+ document.getElementById('navStaff').setAttribute('aria-pressed',String(view==='staff'));
+ document.getElementById('notesView').hidden=(view!=='notes')||!hasData;
+ document.getElementById('staffView').hidden=(view!=='staff')||!staffHasData;
+ if(view==='staff')renderStaff();else render();
+}
+document.getElementById('navNotes').addEventListener('click',function(){showView('notes');});
+document.getElementById('navStaff').addEventListener('click',function(){showView('staff');});
+
+/* ---------- サイトメモ（案件） ---------- */
 var notes=[],comments=[],currentProject='ジムセレ',hasData=false,commentsHasData=false;
 var editingId=null,editDraft={};
 var openCommentId=null,commentDrafts={};
@@ -144,24 +188,28 @@ function renderProjects(){
  selectEl.value=currentProject;
 }
 document.getElementById('projectSelect').addEventListener('change',function(e){currentProject=e.target.value;render();});
-function renderCommentThread(memoId){
- var list=commentsFor(memoId);
+function renderCommentThread(memoId,refPath){
+ var list=refPath==='staffNotes'?staffNotesFor(memoId):commentsFor(memoId);
  var html='<div class="comments">';
  html+=list.map(function(c){
   var day=noteCreatedDay(c.createdAt);
   return '<div class="comment"><div class="comment-head"><strong>'+esc(c.author)+'</strong><span>'+esc(day)+'</span></div><div class="comment-text">'+esc(c.text)+'</div></div>';
  }).join('');
- if(!commentsHasData&&!list.length){html+='<div style="font-size:12px;color:var(--muted)">コメントを読み込み中…</div>';}
- if(openCommentId===memoId){
-  var d=commentDrafts[memoId]||{text:'',author:''};
+ var loaded=refPath==='staffNotes'?staffNotesHasData:commentsHasData;
+ if(!loaded&&!list.length){html+='<div style="font-size:12px;color:var(--muted)">読み込み中…</div>';}
+ var openId=refPath==='staffNotes'?openStaffNoteId:openCommentId;
+ var drafts=refPath==='staffNotes'?staffNoteDrafts:commentDrafts;
+ var action=refPath==='staffNotes'?'staffnote':'comment';
+ if(openId===memoId){
+  var d=drafts[memoId]||{text:'',author:''};
   html+='<div class="comment-form">'
-   +'<input type="text" data-role="c-author" placeholder="お名前" value="'+esc(d.author)+'">'
-   +'<textarea data-role="c-text" placeholder="コメントを入力">'+esc(d.text)+'</textarea>'
+   +'<input type="text" data-role="'+action+'-author" placeholder="お名前" value="'+esc(d.author)+'">'
+   +'<textarea data-role="'+action+'-text" placeholder="'+(refPath==='staffNotes'?'やり取りの記録を入力':'コメントを入力')+'">'+esc(d.text)+'</textarea>'
    +(d.msg?'<div class="form-msg">'+esc(d.msg)+'</div>':'')
-   +'<div class="comment-form-foot"><button type="button" class="edit-form-foot-cancel" data-action="comment-cancel">キャンセル</button><button type="button" class="primary" data-action="comment-save" data-id="'+esc(memoId)+'" style="background:var(--accent);color:#fff;border:0;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700">送信</button></div>'
+   +'<div class="comment-form-foot"><button type="button" data-action="'+action+'-cancel">キャンセル</button><button type="button" class="primary" data-action="'+action+'-save" data-id="'+esc(memoId)+'" style="background:var(--accent);color:#fff;border:0;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700">送信</button></div>'
    +'</div>';
  }else{
-  html+='<div class="note-actions"><button type="button" data-action="comment-open" data-id="'+esc(memoId)+'">コメントする</button></div>';
+  html+='<div class="note-actions"><button type="button" data-action="'+action+'-open" data-id="'+esc(memoId)+'">'+(refPath==='staffNotes'?'やり取りを記録する':'コメントする')+'</button></div>';
  }
  html+='</div>';
  return html;
@@ -187,7 +235,7 @@ function renderHistory(){
    body='<p class="project-note-text">'+esc(n.text)+'</p>'+recorded
     +'<div class="note-actions"><button type="button" data-action="edit-open" data-id="'+esc(n.id)+'">編集</button></div>';
   }
-  return '<article class="project-note"><div class="project-note-head"><time datetime="'+esc(n.date)+'">'+esc(n.date||'日付未設定')+'</time><span>'+esc(n.author)+'</span></div>'+body+renderCommentThread(n.id)+'</article>';
+  return '<article class="project-note"><div class="project-note-head"><time datetime="'+esc(n.date)+'">'+esc(n.date||'日付未設定')+'</time><span>'+esc(n.author)+'</span></div>'+body+renderCommentThread(n.id,'siteMemoComments')+'</article>';
  }).join('')+'</div>';
  bindHistoryEvents();
 }
@@ -206,7 +254,96 @@ function bindHistoryEvents(){
  el.querySelectorAll('[data-role=c-author]').forEach(function(t){t.addEventListener('input',function(){var id=openCommentId;if(id&&commentDrafts[id])commentDrafts[id].author=t.value;});});
 }
 function render(){document.getElementById('projectHeading').textContent=labelTag(currentProject);renderProjects();renderHistory();}
-render();
+
+/* ---------- 外注さん（プロフィールページ形式・案件とは別枠） ---------- */
+var staff=[],staffNotes=[],currentStaffId=null,staffHasData=false,staffNotesHasData=false;
+var staffEditing=false,staffEditDraft={};
+var openStaffNoteId=null,staffNoteDrafts={};
+function staffNotesFor(staffId){var list=staffNotes.filter(function(c){return c.staffId===staffId;});list.sort(function(a,b){return a.createdAt.localeCompare(b.createdAt);});return list;}
+function renderStaffList(){
+ var listEl=document.getElementById('staffList');listEl.innerHTML='';
+ var selectEl=document.getElementById('staffSelect');selectEl.innerHTML='';
+ var sorted=staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ja');});
+ sorted.forEach(function(p){
+  var b=document.createElement('button');b.type='button';b.className='project-button';b.setAttribute('aria-pressed',String(p.id===currentStaffId));
+  b.innerHTML='<span class="project-name">'+esc(p.name||'（名前未設定）')+'</span>';
+  b.addEventListener('click',function(){currentStaffId=p.id;staffEditing=false;renderStaff();});
+  listEl.appendChild(b);
+  var opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name||'（名前未設定）';selectEl.appendChild(opt);
+ });
+ if(currentStaffId)selectEl.value=currentStaffId;
+}
+document.getElementById('staffSelect').addEventListener('change',function(e){currentStaffId=e.target.value;staffEditing=false;renderStaff();});
+document.getElementById('staffAdd').addEventListener('click',function(){
+ rtdb.ref('staffProfiles').push({name:'新しい外注さん',text:'',updatedAt:new Date().toISOString()}).then(function(ref){
+  currentStaffId=ref.key;staffEditing=true;staffEditDraft={name:'新しい外注さん',text:'',msg:''};renderStaff();
+ });
+});
+function startStaffEdit(p){staffEditing=true;staffEditDraft={name:p.name,text:p.text,msg:''};renderStaff();}
+function cancelStaffEdit(){staffEditing=false;staffEditDraft={};renderStaff();}
+function saveStaffEdit(id){
+ var d=staffEditDraft;
+ if(!d.name||!d.name.trim()){d.msg='名前を入力してください。';renderStaff();return;}
+ rtdb.ref('staffProfiles/'+id).update({name:d.name.trim(),text:(d.text||'').trim(),updatedAt:new Date().toISOString()}).then(function(){
+  staffEditing=false;staffEditDraft={};renderStaff();
+ }).catch(function(err){
+  d.msg='保存できませんでした。('+(err&&err.message||'')+')';renderStaff();
+ });
+}
+function openStaffNote(staffId){openStaffNoteId=staffId;if(!staffNoteDrafts[staffId])staffNoteDrafts[staffId]={text:'',author:'',msg:''};renderStaff();}
+function closeStaffNote(){openStaffNoteId=null;renderStaff();}
+function submitStaffNote(staffId){
+ var d=staffNoteDrafts[staffId]||{};
+ if(!d.text||!d.text.trim()){d.msg='内容を入力してください。';renderStaff();return;}
+ rtdb.ref('staffNotes').push({staffId:staffId,text:d.text.trim(),author:(d.author||'').trim()||'匿名',createdAt:new Date().toISOString()}).then(function(){
+  delete staffNoteDrafts[staffId];openStaffNoteId=null;renderStaff();
+ }).catch(function(err){
+  d.msg='送信できませんでした。('+(err&&err.message||'')+')';renderStaff();
+ });
+}
+function renderStaff(){
+ renderStaffList();
+ var el=document.getElementById('staffDetail');
+ if(!staffHasData){el.innerHTML='<div class="note-empty">読み込み中です…</div>';return;}
+ if(!staff.length){el.innerHTML='<div class="note-empty"><strong>まだ外注さんが登録されていません</strong><p>左上の「＋」から追加してください。</p></div>';return;}
+ if(!currentStaffId||!staff.some(function(p){return p.id===currentStaffId;}))currentStaffId=staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ja');})[0].id;
+ var p=staff.find(function(x){return x.id===currentStaffId;});
+ var body;
+ if(staffEditing){
+  var d=staffEditDraft;
+  body='<div class="staff-profile"><div class="edit-form">'
+   +'<input type="text" data-role="s-name" placeholder="お名前" value="'+esc(d.name||'')+'" style="font-size:18px;font-weight:700;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px">'
+   +'<textarea data-role="s-text" placeholder="プロフィール・スキル・稼働状況など" style="min-height:260px">'+esc(d.text||'')+'</textarea>'
+   +(d.msg?'<div class="form-msg">'+esc(d.msg)+'</div>':'')
+   +'<div class="edit-form-foot"><button type="button" data-action="s-cancel">キャンセル</button><button type="button" class="primary" data-action="s-save" data-id="'+esc(p.id)+'">保存</button></div>'
+   +'</div></div>';
+ }else{
+  var updated=p.updatedAt?noteCreatedDay(p.updatedAt):'';
+  body='<div class="staff-profile"><div class="staff-name">'+esc(p.name||'（名前未設定）')+'</div>'
+   +'<p class="project-note-text">'+esc(p.text||'（プロフィール未入力）')+'</p>'
+   +(updated?'<p class="staff-updated">最終更新：'+esc(updated)+'</p>':'')
+   +'<div class="note-actions"><button type="button" data-action="s-open" data-id="'+esc(p.id)+'">編集</button></div>'
+   +'</div>';
+ }
+ body+='<div class="staff-log-heading">やり取りの記録</div>'+renderCommentThread(p.id,'staffNotes');
+ el.innerHTML=body;
+ bindStaffEvents();
+}
+function bindStaffEvents(){
+ var el=document.getElementById('staffDetail');
+ el.querySelectorAll('[data-action=s-open]').forEach(function(b){b.addEventListener('click',function(){var p=staff.find(function(x){return x.id===b.dataset.id;});if(p)startStaffEdit(p);});});
+ el.querySelectorAll('[data-action=s-cancel]').forEach(function(b){b.addEventListener('click',cancelStaffEdit);});
+ el.querySelectorAll('[data-action=s-save]').forEach(function(b){b.addEventListener('click',function(){saveStaffEdit(b.dataset.id);});});
+ el.querySelectorAll('[data-role=s-name]').forEach(function(t){t.addEventListener('input',function(){staffEditDraft.name=t.value;});});
+ el.querySelectorAll('[data-role=s-text]').forEach(function(t){t.addEventListener('input',function(){staffEditDraft.text=t.value;});});
+ el.querySelectorAll('[data-action=staffnote-open]').forEach(function(b){b.addEventListener('click',function(){openStaffNote(b.dataset.id);});});
+ el.querySelectorAll('[data-action=staffnote-cancel]').forEach(function(b){b.addEventListener('click',closeStaffNote);});
+ el.querySelectorAll('[data-action=staffnote-save]').forEach(function(b){b.addEventListener('click',function(){submitStaffNote(b.dataset.id);});});
+ el.querySelectorAll('[data-role=staffnote-text]').forEach(function(t){t.addEventListener('input',function(){var id=openStaffNoteId;if(id&&staffNoteDrafts[id])staffNoteDrafts[id].text=t.value;});});
+ el.querySelectorAll('[data-role=staffnote-author]').forEach(function(t){t.addEventListener('input',function(){var id=openStaffNoteId;if(id&&staffNoteDrafts[id])staffNoteDrafts[id].author=t.value;});});
+}
+
+/* ---------- connect ---------- */
 function connectData(){
  rtdb.ref('siteMemos').on('value',function(snap){
   var val=snap.val()||{};
@@ -216,7 +353,7 @@ function connectData(){
   });
   hasData=true;
   document.getElementById('status').hidden=true;
-  document.getElementById('layout').hidden=false;
+  if(currentView==='notes')document.getElementById('notesView').hidden=false;
   render();
  },function(err){
   var s=document.getElementById('status');s.hidden=false;s.className='status error';s.textContent='読み込めませんでした。時間をおいて再度開いてください。('+(err&&err.message||'')+')';
@@ -228,8 +365,26 @@ function connectData(){
    return {id:id,memoId:String(raw.memoId||''),text:typeof raw.text==='string'?raw.text:'',author:String(raw.author||'匿名'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
   });
   commentsHasData=true;
-  if(hasData)renderHistory();
+  if(hasData&&currentView==='notes')renderHistory();
  },function(err){console.error('siteMemoComments load failed',err);});
+ rtdb.ref('staffProfiles').on('value',function(snap){
+  var val=snap.val()||{};
+  staff=Object.keys(val).map(function(id){
+   var raw=val[id]||{};
+   return {id:id,name:String(raw.name||''),text:typeof raw.text==='string'?raw.text:'',updatedAt:typeof raw.updatedAt==='string'?raw.updatedAt:''};
+  });
+  staffHasData=true;
+  if(currentView==='staff'){document.getElementById('staffView').hidden=false;renderStaff();}
+ },function(err){console.error('staffProfiles load failed',err);});
+ rtdb.ref('staffNotes').on('value',function(snap){
+  var val=snap.val()||{};
+  staffNotes=Object.keys(val).map(function(id){
+   var raw=val[id]||{};
+   return {id:id,staffId:String(raw.staffId||''),text:typeof raw.text==='string'?raw.text:'',author:String(raw.author||'匿名'),createdAt:typeof raw.createdAt==='string'?raw.createdAt:''};
+  });
+  staffNotesHasData=true;
+  if(staffHasData&&currentView==='staff')renderStaff();
+ },function(err){console.error('staffNotes load failed',err);});
 }
 firebase.auth().signInAnonymously().then(function(){
  authReady=true;
