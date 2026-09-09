@@ -8,6 +8,7 @@
   const states=Object.fromEntries(collections.map(key=>[key,'loading']));
   const disposers=[], dateTimers=new Map(), dateState=new Map();
   let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest', currentProjectPicked=false;
+  let noteBusy=false, noteComposeOpen=false;
   let ui, unbindHistory, unbindStaff, unbindStaffLog;
   // "Unseen" project tracking (per-browser, shared with index.html via the same
   // localStorage key/origin): a project stays flagged until you actually open it,
@@ -37,11 +38,33 @@
     $('staffView').hidden=currentView!=='staff'||!authReady;
     $('staffAdd').disabled=!authReady||states.staffProfiles!=='ready'||adding;
     $('staffAddMobile').disabled=$('staffAdd').disabled;
+    $('noteAddToggle').disabled=!authReady||states.siteMemos!=='ready';
+    $('noteSubmit').disabled=!authReady||noteBusy||states.siteMemos!=='ready';
   }
   function showView(view){currentView=view;ui.resetConfirmation();$('navNotes').setAttribute('aria-pressed',String(view==='notes'));$('navStaff').setAttribute('aria-pressed',String(view==='staff'));status();if(view==='staff')renderStaff();else render();}
   $('navNotes').addEventListener('click',()=>showView('notes'));
   $('navStaff').addEventListener('click',()=>showView('staff'));
-  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();render(true);}
+  function closeNoteCompose(){noteComposeOpen=false;$('noteForm').hidden=true;$('noteAddToggle').textContent='＋ 新しい記録を追加';}
+  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();closeNoteCompose();render(true);}
+  $('noteAddToggle').addEventListener('click',()=>{
+    noteComposeOpen=!noteComposeOpen;$('noteForm').hidden=!noteComposeOpen;$('noteAddToggle').textContent=noteComposeOpen?'－ 閉じる':'＋ 新しい記録を追加';
+    if(noteComposeOpen)$('noteText').focus();
+  });
+  try{$('noteAuthorInput').value=(localStorage.getItem('wb_me')||'').trim();}catch(e){}
+  $('noteDate').value=W.dateStr();
+  $('noteForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(noteBusy||states.siteMemos!=='ready'||!authReady)return;
+    const text=$('noteText').value.trim(), date=$('noteDate').value, author=$('noteAuthorInput').value.trim()||'匿名';
+    if(!text||!date){$('noteError').textContent='メモと記録日を入力してください。';$('noteError').hidden=false;return;}
+    noteBusy=true;status();$('noteError').hidden=true;
+    try{
+      await db.collection('siteMemos').add({projectTag:currentProject,text,date,author,createdAt:new Date().toISOString()});
+      try{localStorage.setItem('wb_me',author);}catch(err){}
+      $('noteText').value='';$('noteDate').value=W.dateStr();closeNoteCompose();
+    }catch(err){$('noteError').textContent='追記できませんでした。入力内容は残っています。接続を確認してもう一度追記してください。';$('noteError').hidden=false;}
+    finally{noteBusy=false;status();}
+  });
   function renderProjects(){
     const activity=projectActivity();
     // First time this browser sees the feature, treat all existing activity as

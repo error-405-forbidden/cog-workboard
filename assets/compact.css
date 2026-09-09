@@ -40,6 +40,17 @@ dialog .sheet-foot{padding:10px 16px}
 .comments{margin-top:6px;padding-top:6px}
 .comment{padding:8px 10px}
 .note-actions{margin-top:4px}
+/* Base compose-form structural rules — index.css already has fuller versions
+   of these for index.html; notes.html has none of its own, so its new
+   "＋ 新しい記録を追加" form would render unstyled without this. */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>label{font-size:13px;font-weight:700}
+.note-compose{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.note-compose textarea{min-height:100px;width:100%;background:var(--soft)}
+.note-compose-foot{display:flex;align-items:flex-end;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
+.note-date-author{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px}
+.note-date-author .field{width:160px}
+.note-add-toggle{margin:12px 0}
 /* Base 表示順 sort control + its header row, shared by the memo history (both
    pages) and the staff log — notes.html had no such control until now. */
 .note-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
