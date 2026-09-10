@@ -93,6 +93,11 @@ dialog .sheet-foot{padding:10px 16px}
 .memo-search input{flex:1;min-width:0;padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;color:inherit}
 .memo-search input::placeholder{color:var(--muted)}
 .memo-search .link-btn{flex-shrink:0}
+/* In the サイトメモ intro row it sits where the 「全員で共有」 label used to be —
+   right-aligned, capped width on desktop, full width once the row wraps. */
+.notes-intro{flex-wrap:wrap}
+.notes-intro .memo-search{flex:1 1 300px;max-width:440px;margin:6px 0 0}
+@media(max-width:640px){.notes-intro .memo-search{max-width:none;flex-basis:100%}}
 .memo-hit-project{margin:16px 0 -4px;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.03em}
 .note-history .memo-hit-project:first-child{margin-top:0}
 @media(max-width:640px){

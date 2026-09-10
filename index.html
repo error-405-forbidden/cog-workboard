@@ -11,10 +11,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- ?v= is a manual cache-buster — GitHub Pages caches these for 10 min (Cache-Control: max-age=600),
      so bump this value whenever any assets/*.css or assets/*.js file changes. -->
-<link rel="stylesheet" href="assets/index.css?v=20260910b">
-<link rel="stylesheet" href="assets/records.css?v=20260910b">
-<link rel="stylesheet" href="assets/dashboard.css?v=20260910b">
-<link rel="stylesheet" href="assets/compact.css?v=20260910b">
+<link rel="stylesheet" href="assets/index.css?v=20260910c">
+<link rel="stylesheet" href="assets/records.css?v=20260910c">
+<link rel="stylesheet" href="assets/dashboard.css?v=20260910c">
+<link rel="stylesheet" href="assets/compact.css?v=20260910c">
 </head>
 <body>
 <div id="loginScreen" class="login-screen">
@@ -59,17 +59,17 @@
 
 </div>
 <section id="notesView" aria-labelledby="notesHeading" hidden>
- <div class="notes-intro"><div><h2 id="notesHeading">サイトメモ</h2><p>案件ごとの申し送り・経緯・注意点を、日付付きで残します。</p></div><span class="shared-label">全員で共有</span></div>
+ <div class="notes-intro"><div><h2 id="notesHeading">サイトメモ</h2><p>案件ごとの申し送り・経緯・注意点を、日付付きで残します。</p></div>
+  <div class="memo-search">
+   <input type="search" id="memoSearch" placeholder="サイトメモを検索（スペース区切りで全語をふくむものだけ）" aria-label="サイトメモを検索">
+   <button type="button" class="link-btn" id="memoSearchClear" hidden>クリア</button>
+  </div></div>
  <div class="notes-status" id="notesStatus" role="status"><span id="notesStatusText">サイトメモを読み込み中…</span><button type="button" class="btn" id="notesRetry" hidden>再接続</button></div>
  <div class="notes-layout">
   <aside class="notes-projects" aria-label="サイト・案件を選択"><h3>サイト・案件</h3><div class="project-list" id="notesProjects"></div></aside>
   <div class="notes-main">
    <div class="notes-mobile-picker"><label for="notesProjectSelect">サイト・案件</label><select id="notesProjectSelect"></select></div>
    <h3 class="notes-project-heading" id="notesProjectHeading">ジムセレ</h3>
-   <div class="memo-search">
-    <input type="search" id="memoSearch" placeholder="サイトメモを検索（スペース区切りで全語をふくむものだけ）" aria-label="サイトメモを検索">
-    <button type="button" class="link-btn" id="memoSearchClear" hidden>クリア</button>
-   </div>
    <form class="note-compose" id="noteForm"><h3>メモを追記</h3><div class="field"><label for="noteText" class="sr-only">申し送り・経緯・注意点</label><textarea id="noteText" required placeholder="例：サーバー移転のため、今週はメンテナンス厳禁。再開日は別途連絡。"></textarea></div>
     <div class="note-compose-foot"><div class="note-date-author"><div class="field"><label for="noteDate">記録日</label><input type="date" id="noteDate" required></div><span class="note-author" id="noteAuthor"></span></div><button type="submit" class="btn primary" id="noteSubmit" disabled>この案件に追記</button></div>
     <p class="note-guidance">変更や訂正も、新しいメモとして追記します。過去の記録はそのまま残ります。</p><p class="form-error" id="noteError" role="alert" hidden></p>
@@ -80,7 +80,7 @@
  </div>
 </section>
 <section id="staffView" aria-labelledby="staffHeading" hidden>
- <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div><span class="shared-label">全員で共有</span></div>
+ <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div></div>
  <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
  <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
  <div class="staff-columns">
@@ -116,9 +116,9 @@
  <div class="sheet-foot"><button type="button" class="btn" id="refreshSummary">最新の内容に更新</button><button type="button" class="btn primary" id="copySummary"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>テキストをコピー</button></div>
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script src="assets/firebase-config.js?v=20260910b"></script>
-<script src="assets/workboard-core.js?v=20260910b"></script>
-<script src="assets/records-ui.js?v=20260910b"></script>
-<script src="assets/index-app.js?v=20260910b"></script>
+<script src="assets/firebase-config.js?v=20260910c"></script>
+<script src="assets/workboard-core.js?v=20260910c"></script>
+<script src="assets/records-ui.js?v=20260910c"></script>
+<script src="assets/index-app.js?v=20260910c"></script>
 </body>
 </html>
