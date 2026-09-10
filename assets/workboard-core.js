@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
   const W = global.Workboard = {};
-  W.TAGS = ['ジムセレ', '買取サファリ', '金融メディアサイト群', '自社サイト', '共通/インフラ', 'その他'];
+  W.TAGS = ['ジムセレ', '買取サファリ', '金融メディアサイト群', '自社サイト', '共通/インフラ', 'SNS', 'その他'];
   W.esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
   W.canonicalProject = tag => tag === '共通・インフラ' ? '共通/インフラ' : String(tag || 'その他');
   W.labelTag = tag => tag === '共通/インフラ' ? '共通・インフラ' : tag;
