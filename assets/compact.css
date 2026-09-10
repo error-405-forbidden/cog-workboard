@@ -87,6 +87,14 @@ dialog .sheet-foot{padding:10px 16px}
 [data-wb-action="text-more"]:hover,[data-wb-action="text-less"]:hover{text-decoration:underline}
 /* Two-line clamp respects word/line boundaries, unlike a fixed character cut. */
 .text-clamp{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Free-text search over every memo on the page. While it has text, the history
+   pane shows matches from all projects, each labelled with its project. */
+.memo-search{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+.memo-search input{flex:1;min-width:0;padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;color:inherit}
+.memo-search input::placeholder{color:var(--muted)}
+.memo-search .link-btn{flex-shrink:0}
+.memo-hit-project{margin:16px 0 -4px;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.03em}
+.note-history .memo-hit-project:first-child{margin-top:0}
 @media(max-width:640px){
   .topbar{min-height:auto}
   .quickadd{padding:12px}

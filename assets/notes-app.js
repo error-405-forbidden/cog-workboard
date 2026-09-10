@@ -45,7 +45,12 @@
   $('navNotes').addEventListener('click',()=>showView('notes'));
   $('navStaff').addEventListener('click',()=>showView('staff'));
   function closeNoteCompose(){noteComposeOpen=false;$('noteForm').hidden=true;$('noteAddToggle').textContent='＋ 新しい記録を追加';}
-  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();closeNoteCompose();render(true);}
+  // Search bypasses the project selection and shows matches from every project,
+  // so picking a project from the sidebar drops back out of search.
+  function clearMemoSearch(){$('memoSearch').value='';$('memoSearchClear').hidden=true;}
+  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();closeNoteCompose();clearMemoSearch();render(true);}
+  $('memoSearch').addEventListener('input',()=>{$('memoSearchClear').hidden=!$('memoSearch').value.trim();renderHistory();});
+  $('memoSearchClear').addEventListener('click',()=>{clearMemoSearch();renderHistory();});
   $('noteAddToggle').addEventListener('click',()=>{
     noteComposeOpen=!noteComposeOpen;$('noteForm').hidden=!noteComposeOpen;$('noteAddToggle').textContent=noteComposeOpen?'－ 閉じる':'＋ 新しい記録を追加';
     if(noteComposeOpen)$('noteText').focus();
@@ -90,6 +95,14 @@
   $('noteSort').addEventListener('change',()=>renderHistory());
   function renderHistory(force=false){
     const order=$('noteSort').value;
+    const query=$('memoSearch').value;
+    if(W.searchTokens(query).length){
+      const hits=W.sortMemos(W.searchMemos(records.siteMemos,query),order);
+      const content=hits.map(n=>'<p class="memo-hit-project">'+E(W.labelTag(n.projectTag))+'</p>'+ui.memo(n,order)).join('');
+      $('projectHeading').textContent='検索結果：'+hits.length+'件';
+      W.replaceContent($('history'),content?'<div class="note-history">'+content+'</div>':'<div class="note-empty"><strong>「'+E(query.trim())+'」に一致する記録はありません</strong></div>',!force);
+      return;
+    }
     const full=W.sortMemos(records.siteMemos.filter(n=>n.projectTag===currentProject),order);
     const collapsed=full.length>10&&!ui.isThreadExpanded('memolist',currentProject),list=collapsed?full.slice(0,10):full;
     const content=(collapsed?ui.moreButton('memolist',currentProject,full.length-list.length):'')+list.map(n=>ui.memo(n,order)).join('')+ui.orphanMemos(currentProject);

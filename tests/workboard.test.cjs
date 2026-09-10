@@ -29,6 +29,31 @@ test('staff profile deletion is a two-click confirm and a failure leaves the rec
 test('task log transactions append to the latest array instead of losing concurrent logs',async()=>{const {db,rtdb}=fixture();rtdb.external('tasks/t',{title:'Task',logs:[]});await Promise.all(['A','B'].map(text=>db.doc('tasks/t').mutate(current=>({...current,logs:current.logs.concat({text,date:'2026-09-08'})}))));assert.equal(rtdb.read('tasks/t').logs.map(x=>x.text).join(','),'A,B');});
 test('manual legacy migration is idempotent and cannot overwrite an edited memo',async()=>{const {db,rtdb}=fixture();assert.equal(await db.doc('siteMemos/a').createIfAbsent({text:'legacy'}),false);assert.equal(rtdb.read('siteMemos/a').text,'original');assert.equal(await db.doc('siteMemos/new').createIfAbsent({text:'legacy'}),true);assert.equal(await db.doc('siteMemos/new').createIfAbsent({text:'legacy'}),false);});
 test('focused Japanese input is not detached or replaced during a live render',()=>{const active={tagName:'TEXTAREA',getAttribute:()=>null};let replacements=0,creates=0;const rootEl={contains:n=>n===active,querySelectorAll:()=>[],addEventListener(){},replaceChildren(){replacements++;}};const {W}=load({document:{activeElement:active,createElement(){creates++;throw Error('Must not detach composing input');}}});W.replaceContent(rootEl,'latest server markup');assert.equal(replacements,0);assert.equal(creates,0);assert.equal(rootEl._pendingMarkup,'latest server markup');});
+test('W.searchMemos ANDs space-separated terms (ASCII or full-width) across body/author/project/date, case-insensitively',()=>{
+ const {W}=load();
+ const memos=[
+  {id:'a',text:'DBの移管をエンジニアに依頼',author:'竹川',projectTag:'買取サファリ',date:'2026-09-10'},
+  {id:'b',text:'アイキャッチ作成',author:'村上',projectTag:'ジムセレ',date:'2026-09-08'},
+  {id:'c',text:'サーバー移管の連絡待ち',author:'竹川',projectTag:'金融メディアサイト群',date:'2026-09-05'}
+ ];
+ // single term
+ assert.deepEqual(W.searchMemos(memos,'移管').map(m=>m.id),['a','c']);
+ // two terms ANDed — both must be present somewhere in the memo
+ assert.deepEqual(W.searchMemos(memos,'移管 竹川').map(m=>m.id),['a','c']);
+ assert.deepEqual(W.searchMemos(memos,'移管 DB').map(m=>m.id),['a']);
+ // full-width space also splits terms
+ assert.deepEqual(W.searchMemos(memos,'移管　竹川').map(m=>m.id),['a','c']);
+ // matches the project label (alias-resolved) and the date too
+ assert.deepEqual(W.searchMemos(memos,'ジムセレ 村上').map(m=>m.id),['b']);
+ assert.deepEqual(W.searchMemos(memos,'2026-09-10').map(m=>m.id),['a']);
+ // case-insensitive
+ assert.deepEqual(W.searchMemos(memos,'db').map(m=>m.id),['a']);
+ // no match
+ assert.deepEqual(W.searchMemos(memos,'移管 存在しない語').map(m=>m.id),[]);
+ // blank query returns everything
+ assert.equal(W.searchMemos(memos,'   ').length,3);
+ assert.equal(W.searchTokens('  a　 b c ').join(','),'a,b,c');
+});
 test('memo dates use local days and project aliases stay compatible',()=>{const {W}=load();assert.equal(W.canonicalProject('共通・インフラ'),'共通/インフラ');assert.equal(W.createdDay('invalid'),'');assert.equal(W.esc('<img onerror="x">'),'&lt;img onerror=&quot;x&quot;&gt;');const list=[{id:'a',date:'2026-09-01',createdAt:''},{id:'b',date:'2026-09-02',createdAt:''}];assert.equal(W.sortMemos(list).map(n=>n.id).join(','),'b,a');assert.equal(W.sortMemos(list,'oldest').map(n=>n.id).join(','),'a,b');});
 for(const page of ['index','notes'])test(page+' script starts with all real HTML ids and cleans up subscriptions on pagehide',async()=>{
  const doc=fakeDocument(fs.readFileSync(path.join(root,page+'.html'),'utf8')),rtdb=fakeRTDB(),events=new Map();let authHandler,anonymousCalls=0,signOutCalls=0;

@@ -191,8 +191,13 @@ let currentView='tasks';
 function showView(view){currentView=view;$('tasksView').hidden=view!=='tasks';$('notesView').hidden=view!=='notes';$('staffView').hidden=view!=='staff';$('showTasks').setAttribute('aria-pressed',String(view==='tasks'));$('showNotes').setAttribute('aria-pressed',String(view==='notes'));$('showStaff').setAttribute('aria-pressed',String(view==='staff'));if(view==='notes')renderNotes();else if(view==='staff')renderStaff();}
 $('showTasks').addEventListener('click',()=>showView('tasks'));$('showNotes').addEventListener('click',()=>showView('notes'));$('showStaff').addEventListener('click',()=>showView('staff'));
 function saveNoteDraft(){noteDrafts.set(noteProject,{text:$('noteText').value,date:$('noteDate').value});}
-function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
+// Search bypasses the project selection and shows matches from every project,
+// so picking a project from the sidebar drops back out of search.
+function clearMemoSearch(){$('memoSearch').value='';$('memoSearchClear').hidden=true;}
+function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();clearMemoSearch();noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
 $('notesProjectSelect').addEventListener('change',e=>chooseNoteProject(e.target.value));$('noteText').addEventListener('input',saveNoteDraft);$('noteDate').addEventListener('input',saveNoteDraft);$('noteSort').addEventListener('change',renderNoteHistory);
+$('memoSearch').addEventListener('input',()=>{$('memoSearchClear').hidden=!$('memoSearch').value.trim();renderNoteHistory();});
+$('memoSearchClear').addEventListener('click',()=>{clearMemoSearch();renderNoteHistory();});
 function renderNoteProjects(){
  const activity=projectActivity();
  // First time this browser sees the feature, treat all existing activity as
@@ -211,9 +216,19 @@ function renderNoteProjects(){
  const latest=activity.get(tag),isNew=!!latest&&latest!==seenActivity[tag];
  const b=document.createElement('button');b.type='button';b.className='project-button'+(isNew?' pinned':'');if(isNew)b.title='未確認の更新あり';b.setAttribute('aria-pressed',String(tag===noteProject));b.innerHTML='<span class="project-name">'+esc(labelTag(tag))+'</span><span class="project-count">'+(notesHasData?count+'件':'—')+'</span>';b.addEventListener('click',()=>chooseNoteProject(tag));$('notesProjects').append(b);const option=document.createElement('option');option.value=tag;option.textContent=labelTag(tag)+(notesHasData?'（'+count+'件）':'');$('notesProjectSelect').append(option);});$('notesProjectSelect').value=noteProject;syncNoteControls();}
 function renderNoteHistory(force=false){
+ const order=$('noteSort').value;
+ const query=$('memoSearch').value;
+ if(W.searchTokens(query).length){
+  const hits=W.sortMemos(W.searchMemos(siteNotes,query),order);
+  $('noteHistoryHeading').textContent='検索結果（'+hits.length+'件）';$('notesProjectHeading').textContent='検索結果';
+  if(!notesUI)return;
+  const content=hits.map(n=>'<p class="memo-hit-project">'+esc(labelTag(n.projectTag))+'</p>'+notesUI.memo(n,order)).join('');
+  $('noteHistory').className=content?'note-history':'';
+  W.replaceContent($('noteHistory'),content||'<div class="note-empty"><strong>「'+esc(query.trim())+'」に一致する記録はありません</strong></div>',!force);
+  return;
+ }
  const full=projectNotes(noteProject,$('noteSort').value);$('noteHistoryHeading').textContent='これまでの記録'+(notesHasData?'（'+full.length+'件）':'');
  if(!notesUI)return;
- const order=$('noteSort').value;
  const collapsed=full.length>10&&!notesUI.isThreadExpanded('memolist',noteProject),list=collapsed?full.slice(0,10):full;
  const content=(collapsed?notesUI.moreButton('memolist',noteProject,full.length-list.length):'')+list.map(n=>notesUI.memo(n,order)).join('')+notesUI.orphanMemos(noteProject);
  $('noteHistory').className=content?'note-history':'';

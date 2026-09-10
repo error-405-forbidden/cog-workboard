@@ -11,10 +11,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- ?v= is a manual cache-buster — GitHub Pages caches these for 10 min (Cache-Control: max-age=600),
      so bump this value whenever any assets/*.css or assets/*.js file changes. -->
-<link rel="stylesheet" href="assets/notes.css?v=20260910a">
-<link rel="stylesheet" href="assets/records.css?v=20260910a">
-<link rel="stylesheet" href="assets/dashboard.css?v=20260910a">
-<link rel="stylesheet" href="assets/compact.css?v=20260910a">
+<link rel="stylesheet" href="assets/notes.css?v=20260910b">
+<link rel="stylesheet" href="assets/records.css?v=20260910b">
+<link rel="stylesheet" href="assets/dashboard.css?v=20260910b">
+<link rel="stylesheet" href="assets/compact.css?v=20260910b">
 </head>
 <body>
 <div class="shell">
@@ -38,6 +38,10 @@
    <select id="projectSelect" aria-label="案件を選択"></select>
   </div>
   <h2 class="notes-project-heading" id="projectHeading"></h2>
+  <div class="memo-search">
+   <input type="search" id="memoSearch" placeholder="サイトメモを検索（スペース区切りで全語をふくむものだけ）" aria-label="サイトメモを検索">
+   <button type="button" class="link-btn" id="memoSearchClear" hidden>クリア</button>
+  </div>
   <div class="note-add-toggle"><button type="button" class="link-btn" id="noteAddToggle">＋ 新しい記録を追加</button></div>
   <form class="note-compose" id="noteForm" hidden>
    <div class="field"><label for="noteText" class="sr-only">記録内容</label><textarea id="noteText" required placeholder="例：サーバー移転のため、今週はメンテナンス厳禁。再開日は別途連絡。"></textarea></div>
@@ -71,9 +75,9 @@
 </div>
 
 </div>
-<script src="assets/firebase-config.js?v=20260910a"></script>
-<script src="assets/workboard-core.js?v=20260910a"></script>
-<script src="assets/records-ui.js?v=20260910a"></script>
-<script src="assets/notes-app.js?v=20260910a"></script>
+<script src="assets/firebase-config.js?v=20260910b"></script>
+<script src="assets/workboard-core.js?v=20260910b"></script>
+<script src="assets/records-ui.js?v=20260910b"></script>
+<script src="assets/notes-app.js?v=20260910b"></script>
 </body>
 </html>

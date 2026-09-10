@@ -32,6 +32,17 @@
     const sorted = list.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();
   };
+  // Free-text memo search. The query is split on runs of ASCII or full-width
+  // (　) spaces into terms that are ANDed together — every term must appear
+  // (case-insensitive) somewhere in the memo's body, author, project label or
+  // date. A blank query matches everything.
+  W.searchTokens = query => String(query == null ? '' : query).trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
+  W.memoMatches = (memo, tokens) => {
+    if (!tokens.length) return true;
+    const hay = (String(memo.text || '') + '\n' + String(memo.author || '') + '\n' + W.labelTag(String(memo.projectTag || '')) + '\n' + String(memo.date || '')).toLowerCase();
+    return tokens.every(t => hay.includes(t));
+  };
+  W.searchMemos = (list, query) => { const tokens = W.searchTokens(query); return list.filter(m => W.memoMatches(m, tokens)); };
   // Latest activity per project tag, counting both memos and comments (a comment
   // counts via its parent memo's projectTag) — a reply is an update too.
   W.projectActivity = (notes, comments) => {
