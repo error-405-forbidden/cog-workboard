@@ -161,9 +161,10 @@ function summaryLine(t){const suffix=[];if(t.dueDate)suffix.push('期限'+toMD(t
 function buildSummary(){
  const today=dateStr();
  const mine=tasks.filter(t=>t.assignee===me),done=mine.filter(t=>t.status==='done'&&isoDay(t.doneAt)===today).sort(sortTasks),unfinishedMine=mine.filter(unfinished).sort(sortTasks);
- // A due date still ahead doesn't need action today — keep it out of 残タスク so the
- // daily list isn't cluttered with things that aren't due yet; list them separately.
- const remaining=unfinishedMine.filter(t=>!t.dueDate||t.dueDate<=today),upcoming=unfinishedMine.filter(t=>t.dueDate&&t.dueDate>today);
+ // Same rule the board itself uses per day (inDateView): a future due date, or — for a
+ // task with none — a future createdAt, means it isn't actionable yet. Reusing it here
+ // keeps 残タスク in sync with what's actually showing on today's board.
+ const remaining=unfinishedMine.filter(t=>inDateView(t,today)),upcoming=unfinishedMine.filter(t=>!inDateView(t,today));
  const lines=['【本日完了】（'+oneLine(me)+'）'];if(!done.length)lines.push('・（本日完了した項目なし）');done.forEach(t=>lines.push('・'+oneLine(t.title)));
  lines.push('','【残タスク】');if(!remaining.length)lines.push('・（残タスクなし）');remaining.forEach(t=>lines.push(summaryLine(t)));
  if(upcoming.length){lines.push('','【今日以降の予定】');upcoming.forEach(t=>lines.push(summaryLine(t)));}
