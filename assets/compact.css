@@ -104,6 +104,14 @@ dialog .sheet-foot{padding:10px 16px}
    text, not just the first line of it, so it survives being edited apart from
    the body and doesn't get cut off by the 2-line clamp. */
 .project-note-title{font-size:16px;font-weight:700;color:var(--ink);margin:0 0 6px;overflow-wrap:anywhere}
+/* Rename-this-project control, next to the project heading — renames every
+   siteMemo under the old tag (see W.renameProject); a task's own 案件タグ is a
+   separate concept and is left untouched. */
+.notes-project-headrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.notes-project-headrow .notes-project-heading{margin-bottom:0}
+.rename-project{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 14px}
+.rename-project input{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;color:inherit}
+.rename-project .form-error{flex-basis:100%;margin:0}
 @media(max-width:640px){
   .topbar{min-height:auto}
   .quickadd{padding:12px}

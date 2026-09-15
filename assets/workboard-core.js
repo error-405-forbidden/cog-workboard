@@ -70,6 +70,16 @@
     const sorted = list.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();
   };
+  // Renaming a project/site only ever touches siteMemos.projectTag — task project
+  // tags are a separate, intentionally untouched concept (see the rename UI). A
+  // plain field update (not updateChecked) is fine here: it can only race with an
+  // edit to a *different* field (text/title/date/author) on the same memo, never
+  // with another rename of the same one, so there is nothing to conflict-check.
+  W.renameProject = async (db, memos, from, to) => {
+    const targets = memos.filter(m => m.projectTag === from);
+    for (const m of targets) await db.doc('siteMemos/' + m.id).update({projectTag: to});
+    return targets.length;
+  };
 
   // The only RTDB adapter. Both pages use the same collection/document interface.
   W.createDb = rtdb => {

@@ -8,7 +8,7 @@
   const states=Object.fromEntries(collections.map(key=>[key,'loading']));
   const disposers=[], dateTimers=new Map(), dateState=new Map();
   let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest', currentProjectPicked=false;
-  let noteBusy=false, noteComposeOpen=false;
+  let noteBusy=false, noteComposeOpen=false, renameOpen=false, renameBusy=false;
   let ui, unbindHistory, unbindStaff, unbindStaffLog;
   // "Unseen" project tracking (per-browser, shared with index.html via the same
   // localStorage key/origin): a project stays flagged until you actually open it,
@@ -40,17 +40,43 @@
     $('staffAddMobile').disabled=$('staffAdd').disabled;
     $('noteAddToggle').disabled=!authReady||states.siteMemos!=='ready';
     $('noteSubmit').disabled=!authReady||noteBusy||states.siteMemos!=='ready';
+    $('renameProjectBtn').disabled=!authReady||states.siteMemos!=='ready';
+    $('renameProjectSave').disabled=!authReady||renameBusy||states.siteMemos!=='ready';
   }
   function showView(view){currentView=view;ui.resetConfirmation();$('navNotes').setAttribute('aria-pressed',String(view==='notes'));$('navStaff').setAttribute('aria-pressed',String(view==='staff'));status();if(view==='staff')renderStaff();else render();}
   $('navNotes').addEventListener('click',()=>showView('notes'));
   $('navStaff').addEventListener('click',()=>showView('staff'));
   function closeNoteCompose(){noteComposeOpen=false;$('noteForm').hidden=true;$('noteAddToggle').textContent='＋ 新しい記録を追加';}
+  function closeRename(){renameOpen=false;$('renameProjectForm').hidden=true;$('renameProjectError').hidden=true;}
   // Search bypasses the project selection and shows matches from every project,
   // so picking a project from the sidebar drops back out of search.
   function clearMemoSearch(){$('memoSearch').value='';$('memoSearchClear').hidden=true;}
-  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();closeNoteCompose();clearMemoSearch();render(true);}
+  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();closeNoteCompose();closeRename();clearMemoSearch();render(true);}
   $('memoSearch').addEventListener('input',()=>{$('memoSearchClear').hidden=!$('memoSearch').value.trim();renderHistory();});
   $('memoSearchClear').addEventListener('click',()=>{clearMemoSearch();renderHistory();});
+  // Renaming only ever touches siteMemos.projectTag (see W.renameProject) — a
+  // task's own 案件タグ is a separate concept and is intentionally left alone.
+  $('renameProjectBtn').addEventListener('click',()=>{
+    renameOpen=!renameOpen;$('renameProjectForm').hidden=!renameOpen;$('renameProjectError').hidden=true;
+    if(renameOpen){$('renameProjectInput').value=W.labelTag(currentProject);$('renameProjectInput').focus();}
+  });
+  $('renameProjectCancel').addEventListener('click',closeRename);
+  $('renameProjectSave').addEventListener('click',async()=>{
+    if(renameBusy||states.siteMemos!=='ready'||!authReady)return;
+    const raw=$('renameProjectInput').value.trim();
+    if(!raw){$('renameProjectError').textContent='新しい案件名を入力してください。';$('renameProjectError').hidden=false;return;}
+    const newTag=W.canonicalProject(raw);
+    if(newTag===currentProject){closeRename();return;}
+    const known=new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag)));
+    if(known.has(newTag)){$('renameProjectError').textContent='その名前の案件はすでにあります。';$('renameProjectError').hidden=false;return;}
+    const oldTag=currentProject;renameBusy=true;status();$('renameProjectError').hidden=true;
+    try{
+      await W.renameProject(db,records.siteMemos,oldTag,newTag);
+      if(oldTag in seenActivity){seenActivity[newTag]=seenActivity[oldTag];delete seenActivity[oldTag];saveSeen();}
+      currentProject=newTag;closeRename();render(true);
+    }catch(err){$('renameProjectError').textContent='変更できませんでした。もう一度お試しください。';$('renameProjectError').hidden=false;}
+    finally{renameBusy=false;status();}
+  });
   $('noteAddToggle').addEventListener('click',()=>{
     noteComposeOpen=!noteComposeOpen;$('noteForm').hidden=!noteComposeOpen;$('noteAddToggle').textContent=noteComposeOpen?'－ 閉じる':'＋ 新しい記録を追加';
     if(noteComposeOpen)$('noteText').focus();

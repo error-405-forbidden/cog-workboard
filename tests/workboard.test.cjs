@@ -29,6 +29,17 @@ test('staff profile deletion is a two-click confirm and a failure leaves the rec
 test('task log transactions append to the latest array instead of losing concurrent logs',async()=>{const {db,rtdb}=fixture();rtdb.external('tasks/t',{title:'Task',logs:[]});await Promise.all(['A','B'].map(text=>db.doc('tasks/t').mutate(current=>({...current,logs:current.logs.concat({text,date:'2026-09-08'})}))));assert.equal(rtdb.read('tasks/t').logs.map(x=>x.text).join(','),'A,B');});
 test('manual legacy migration is idempotent and cannot overwrite an edited memo',async()=>{const {db,rtdb}=fixture();assert.equal(await db.doc('siteMemos/a').createIfAbsent({text:'legacy'}),false);assert.equal(rtdb.read('siteMemos/a').text,'original');assert.equal(await db.doc('siteMemos/new').createIfAbsent({text:'legacy'}),true);assert.equal(await db.doc('siteMemos/new').createIfAbsent({text:'legacy'}),false);});
 test('focused Japanese input is not detached or replaced during a live render',()=>{const active={tagName:'TEXTAREA',getAttribute:()=>null};let replacements=0,creates=0;const rootEl={contains:n=>n===active,querySelectorAll:()=>[],addEventListener(){},replaceChildren(){replacements++;}};const {W}=load({document:{activeElement:active,createElement(){creates++;throw Error('Must not detach composing input');}}});W.replaceContent(rootEl,'latest server markup');assert.equal(replacements,0);assert.equal(creates,0);assert.equal(rootEl._pendingMarkup,'latest server markup');});
+test('W.renameProject moves every memo under the old project tag to the new one, and leaves other projects alone',async()=>{
+ const {W,db,rtdb}=fixture();
+ rtdb.external('siteMemos/b',{text:'other project',date:'2026-09-09',author:'A',projectTag:'買取サファリ',createdAt:'2026-09-09T00:00:00Z'});
+ rtdb.external('siteMemos/c',{text:'same project, second entry',date:'2026-09-09',author:'A',projectTag:'ジムセレ',createdAt:'2026-09-09T00:00:00Z'});
+ const memos=Object.entries(rtdb.read('siteMemos')).map(([id,v])=>({...v,id}));
+ const moved=await W.renameProject(db,memos,'ジムセレ','ジムセレ2');
+ assert.equal(moved,2);
+ assert.equal(rtdb.read('siteMemos/a').projectTag,'ジムセレ2');
+ assert.equal(rtdb.read('siteMemos/c').projectTag,'ジムセレ2');
+ assert.equal(rtdb.read('siteMemos/b').projectTag,'買取サファリ');
+});
 test('a site memo can have an editable title, shown as a heading and included in search',async()=>{
  const {W,ui,rtdb}=fixture();
  // no title set yet — no heading rendered
