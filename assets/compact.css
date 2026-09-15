@@ -100,6 +100,10 @@ dialog .sheet-foot{padding:10px 16px}
 @media(max-width:640px){.notes-intro .memo-search{max-width:none;flex-basis:100%}}
 .memo-hit-project{margin:16px 0 -4px;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.03em}
 .note-history .memo-hit-project:first-child{margin-top:0}
+/* Optional memo title, entered separately from the body — a heading above the
+   text, not just the first line of it, so it survives being edited apart from
+   the body and doesn't get cut off by the 2-line clamp. */
+.project-note-title{font-size:16px;font-weight:700;color:var(--ink);margin:0 0 6px;overflow-wrap:anywhere}
 @media(max-width:640px){
   .topbar{min-height:auto}
   .quickadd{padding:12px}

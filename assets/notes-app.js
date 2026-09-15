@@ -60,13 +60,13 @@
   $('noteForm').addEventListener('submit',async e=>{
     e.preventDefault();
     if(noteBusy||states.siteMemos!=='ready'||!authReady)return;
-    const text=$('noteText').value.trim(), date=$('noteDate').value, author=$('noteAuthorInput').value.trim()||'匿名';
+    const title=$('noteTitle').value.trim(), text=$('noteText').value.trim(), date=$('noteDate').value, author=$('noteAuthorInput').value.trim()||'匿名';
     if(!text||!date){$('noteError').textContent='メモと記録日を入力してください。';$('noteError').hidden=false;return;}
     noteBusy=true;status();$('noteError').hidden=true;
     try{
-      await db.collection('siteMemos').add({projectTag:currentProject,text,date,author,createdAt:new Date().toISOString()});
+      await db.collection('siteMemos').add({projectTag:currentProject,title,text,date,author,createdAt:new Date().toISOString()});
       try{localStorage.setItem('wb_me',author);}catch(err){}
-      $('noteText').value='';$('noteDate').value=W.dateStr();closeNoteCompose();
+      $('noteTitle').value='';$('noteText').value='';$('noteDate').value=W.dateStr();closeNoteCompose();
     }catch(err){$('noteError').textContent='追記できませんでした。入力内容は残っています。接続を確認してもう一度追記してください。';$('noteError').hidden=false;}
     finally{noteBusy=false;status();}
   });

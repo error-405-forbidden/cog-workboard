@@ -29,6 +29,21 @@ test('staff profile deletion is a two-click confirm and a failure leaves the rec
 test('task log transactions append to the latest array instead of losing concurrent logs',async()=>{const {db,rtdb}=fixture();rtdb.external('tasks/t',{title:'Task',logs:[]});await Promise.all(['A','B'].map(text=>db.doc('tasks/t').mutate(current=>({...current,logs:current.logs.concat({text,date:'2026-09-08'})}))));assert.equal(rtdb.read('tasks/t').logs.map(x=>x.text).join(','),'A,B');});
 test('manual legacy migration is idempotent and cannot overwrite an edited memo',async()=>{const {db,rtdb}=fixture();assert.equal(await db.doc('siteMemos/a').createIfAbsent({text:'legacy'}),false);assert.equal(rtdb.read('siteMemos/a').text,'original');assert.equal(await db.doc('siteMemos/new').createIfAbsent({text:'legacy'}),true);assert.equal(await db.doc('siteMemos/new').createIfAbsent({text:'legacy'}),false);});
 test('focused Japanese input is not detached or replaced during a live render',()=>{const active={tagName:'TEXTAREA',getAttribute:()=>null};let replacements=0,creates=0;const rootEl={contains:n=>n===active,querySelectorAll:()=>[],addEventListener(){},replaceChildren(){replacements++;}};const {W}=load({document:{activeElement:active,createElement(){creates++;throw Error('Must not detach composing input');}}});W.replaceContent(rootEl,'latest server markup');assert.equal(replacements,0);assert.equal(creates,0);assert.equal(rootEl._pendingMarkup,'latest server markup');});
+test('a site memo can have an editable title, shown as a heading and included in search',async()=>{
+ const {W,ui,rtdb}=fixture();
+ // no title set yet — no heading rendered
+ assert.doesNotMatch(ui.memo({id:'a',text:'original',date:'2026-09-08',author:'A',createdAt:'2026-09-08T01:00:00Z'}),/project-note-title/);
+ ui.startEdit('memo','a');ui.input('memo','a','title','サーバー移転のご案内');
+ await ui.saveEdit('memo','a');
+ assert.equal(rtdb.read('siteMemos/a').title,'サーバー移転のご案内');
+ const record=W.normalizeMemo({id:'a',data:()=>rtdb.read('siteMemos/a')});
+ const html=ui.memo(record);
+ assert.match(html,/<h4 class="project-note-title">サーバー移転のご案内<\/h4>/);
+ // findable by title, ANDed with another term from the body
+ assert.deepEqual(W.searchMemos([record],'サーバー移転').map(m=>m.id),['a']);
+ assert.deepEqual(W.searchMemos([record],'サーバー移転 original').map(m=>m.id),['a']);
+ assert.deepEqual(W.searchMemos([record],'サーバー移転 存在しない').map(m=>m.id),[]);
+});
 test('W.searchMemos ANDs space-separated terms (ASCII or full-width) across body/author/project/date, case-insensitively',()=>{
  const {W}=load();
  const memos=[

@@ -18,7 +18,7 @@
   W.message = err => err && ['conflict', 'missing'].includes(err.code) ? err.message : '保存できませんでした。入力内容は残っています。接続を確認して再度お試しください。';
   W.normalizeMemo = doc => {
     const raw = doc.data() || {};
-    return {...raw, _raw:raw, id:doc.id, projectTag:W.canonicalProject(raw.projectTag), text:String(raw.text || ''), date:W.isoDay(raw.date) || W.createdDay(raw.createdAt), author:String(raw.author || '未設定'), createdAt:String(raw.createdAt || '')};
+    return {...raw, _raw:raw, id:doc.id, projectTag:W.canonicalProject(raw.projectTag), title:String(raw.title || ''), text:String(raw.text || ''), date:W.isoDay(raw.date) || W.createdDay(raw.createdAt), author:String(raw.author || '未設定'), createdAt:String(raw.createdAt || '')};
   };
   W.normalizeComment = (doc, foreignKey) => {
     const raw = doc.data() || {};
@@ -34,12 +34,12 @@
   };
   // Free-text memo search. The query is split on runs of ASCII or full-width
   // (　) spaces into terms that are ANDed together — every term must appear
-  // (case-insensitive) somewhere in the memo's body, author, project label or
-  // date. A blank query matches everything.
+  // (case-insensitive) somewhere in the memo's title, body, author, project
+  // label or date. A blank query matches everything.
   W.searchTokens = query => String(query == null ? '' : query).trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
   W.memoMatches = (memo, tokens) => {
     if (!tokens.length) return true;
-    const hay = (String(memo.text || '') + '\n' + String(memo.author || '') + '\n' + W.labelTag(String(memo.projectTag || '')) + '\n' + String(memo.date || '')).toLowerCase();
+    const hay = (String(memo.title || '') + '\n' + String(memo.text || '') + '\n' + String(memo.author || '') + '\n' + W.labelTag(String(memo.projectTag || '')) + '\n' + String(memo.date || '')).toLowerCase();
     return tokens.every(t => hay.includes(t));
   };
   W.searchMemos = (list, query) => { const tokens = W.searchTokens(query); return list.filter(m => W.memoMatches(m, tokens)); };

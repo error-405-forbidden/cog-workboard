@@ -2,7 +2,7 @@
   'use strict';
   const E = W.esc;
   const definitions = {
-    memo:{collection:'siteMemos', fields:[{key:'date', type:'date', label:'記録日', row:true}, {key:'author', label:'記入者', fallback:'未設定', row:true}, {key:'text', type:'textarea', label:'本文', required:true}]},
+    memo:{collection:'siteMemos', fields:[{key:'date', type:'date', label:'記録日', row:true}, {key:'author', label:'記入者', fallback:'未設定', row:true}, {key:'title', label:'タイトル（任意）'}, {key:'text', type:'textarea', label:'本文', required:true}]},
     staff:{collection:'staffProfiles', fields:[{key:'name', label:'お名前', required:true, className:'staff-name-input'}, {key:'profile', type:'textarea', label:'プロフィール（スキル・稼働時間・レートなど）', showLabel:true, labelClass:'profile-label', className:'profile-input'}, {key:'currentWork', type:'textarea', label:'依頼している内容', showLabel:true}], stamp:'updatedAt'},
     log:{collection:'staffNotes', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]},
     comment:{collection:'siteMemoComments', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]}
@@ -180,7 +180,8 @@
       const pin = W.pinBadge(record.createdAt);
       const headActions = editing ? '' : '<span class="row-actions">'+button('edit','memo',record.id,'編集',false,!canWrite('siteMemos'))+button('delete','memo',record.id,arm.isArmed(record.id)?'本当に削除？もう一度クリック':'削除',false,deleting.has(record.id)||!canWrite('siteMemos'))+composeTrigger('comment',record.id)+'</span>';
       const errorMsg = errors.has(record.id) ? '<div class="form-msg" role="alert">'+E(errors.get(record.id))+'</div>' : '';
-      const body = editing ? form('memo',record.id) : '<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded+errorMsg;
+      const titleHtml = !editing && record.title ? '<h4 class="project-note-title">'+E(record.title)+'</h4>' : '';
+      const body = editing ? form('memo',record.id) : titleHtml+'<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded+errorMsg;
       return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span>'+pin+headActions+'</div>'+body+thread('comment',record.id,order)+'</article>';
     }
     function orphanMemos(project) {
