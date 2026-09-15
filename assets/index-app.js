@@ -157,11 +157,17 @@ $('deleteTask').addEventListener('click',async()=>{
  if(!deleteArm.press(editId))return;
  resetDeleteArm();setEditBusy(true);try{await db.doc('tasks/'+editId).delete();editId=null;editInitial=null;renderBoard();closeDialog($('editDialog'));toast('タスクを削除しました');}catch(err){errorAt('editError','削除できませんでした。もう一度お試しください。');}finally{setEditBusy(false);}
 });
+function summaryLine(t){const suffix=[];if(t.dueDate)suffix.push('期限'+toMD(t.dueDate)+(t.dueDate<dateStr()?'・期限超過':''));if(t.status==='waiting')suffix.push(t.waitingFor?'待ち先：'+oneLine(t.waitingFor):'保留（待ち先未入力）');if(age(t)>=2)suffix.push(age(t)+'日目');return '・'+oneLine(t.title)+(suffix.length?'（'+suffix.join('／')+'）':'');}
 function buildSummary(){
- const mine=tasks.filter(t=>t.assignee===me),done=mine.filter(t=>t.status==='done'&&isoDay(t.doneAt)===dateStr()).sort(sortTasks),remaining=mine.filter(unfinished).sort(sortTasks);
- const lines=['【本日完了】（'+oneLine(me)+'）'];if(!done.length)lines.push('・（本日完了した項目なし）');done.forEach(t=>lines.push('・'+oneLine(t.title)));lines.push('','【残タスク】');if(!remaining.length)lines.push('・（残タスクなし）');
- remaining.forEach(t=>{const suffix=[];if(t.dueDate)suffix.push('期限'+toMD(t.dueDate)+(t.dueDate<dateStr()?'・期限超過':''));if(t.status==='waiting')suffix.push(t.waitingFor?'待ち先：'+oneLine(t.waitingFor):'保留（待ち先未入力）');if(age(t)>=2)suffix.push(age(t)+'日目');lines.push('・'+oneLine(t.title)+(suffix.length?'（'+suffix.join('／')+'）':''));});
- $('summaryText').value=lines.join('\n');$('summaryOwner').textContent=me+'さん / '+dateStr();$('summaryDone').textContent=done.length;$('summaryRemaining').textContent=remaining.length;$('copyHelp').hidden=true;
+ const today=dateStr();
+ const mine=tasks.filter(t=>t.assignee===me),done=mine.filter(t=>t.status==='done'&&isoDay(t.doneAt)===today).sort(sortTasks),unfinishedMine=mine.filter(unfinished).sort(sortTasks);
+ // A due date still ahead doesn't need action today — keep it out of 残タスク so the
+ // daily list isn't cluttered with things that aren't due yet; list them separately.
+ const remaining=unfinishedMine.filter(t=>!t.dueDate||t.dueDate<=today),upcoming=unfinishedMine.filter(t=>t.dueDate&&t.dueDate>today);
+ const lines=['【本日完了】（'+oneLine(me)+'）'];if(!done.length)lines.push('・（本日完了した項目なし）');done.forEach(t=>lines.push('・'+oneLine(t.title)));
+ lines.push('','【残タスク】');if(!remaining.length)lines.push('・（残タスクなし）');remaining.forEach(t=>lines.push(summaryLine(t)));
+ if(upcoming.length){lines.push('','【今日以降の予定】');upcoming.forEach(t=>lines.push(summaryLine(t)));}
+ $('summaryText').value=lines.join('\n');$('summaryOwner').textContent=me+'さん / '+today;$('summaryDone').textContent=done.length;$('summaryRemaining').textContent=remaining.length;$('copyHelp').hidden=true;
 }
 $('openSummary').addEventListener('click',()=>{if(!me||!ready)return;buildSummary();openDialog($('summaryDialog'));});$('closeSummary').addEventListener('click',()=>closeDialog($('summaryDialog')));$('summaryDialog').addEventListener('cancel',e=>{e.preventDefault();closeDialog($('summaryDialog'));});$('refreshSummary').addEventListener('click',()=>{if(!ready)return;buildSummary();toast('最新の内容に更新しました');});
 $('copySummary').addEventListener('click',async()=>{if(!ready)return;const ta=$('summaryText');try{if(!navigator.clipboard||!navigator.clipboard.writeText)throw new Error('unsupported');await navigator.clipboard.writeText(ta.value);toast('コピーしました。Chatworkに貼り付けられます');}catch(e){ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);let copied=false;try{copied=document.execCommand('copy');}catch(err){}if(copied)toast('コピーしました。Chatworkに貼り付けられます');else{$('copyHelp').hidden=false;$('copyHelp').textContent='自動コピーできませんでした。本文を選択した状態で、Ctrl+C／⌘C、または端末の「コピー」を使ってください。';}}});
