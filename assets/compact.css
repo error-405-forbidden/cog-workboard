@@ -112,6 +112,8 @@ dialog .sheet-foot{padding:10px 16px}
 .rename-project{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 14px}
 .rename-project input{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;color:inherit}
 .rename-project .form-error{flex-basis:100%;margin:0}
+.notes-project-headrow .link-btn.danger{color:var(--red)}
+.notes-project-headrow .link-btn.danger.armed{background:var(--red);color:#fff;border-radius:6px;padding:6px 10px}
 @media(max-width:640px){
   .topbar{min-height:auto}
   .quickadd{padding:12px}

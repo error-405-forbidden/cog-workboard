@@ -3,12 +3,13 @@
   const W=Workboard, E=W.esc, $=id=>document.getElementById(id);
   firebase.initializeApp(WorkboardFirebase);
   const auth=firebase.auth(), db=W.createDb(firebase.database());
-  const collections=['siteMemos','siteMemoComments','staffProfiles','staffNotes'];
+  const collections=['siteMemos','siteMemoComments','siteProjects','staffProfiles','staffNotes'];
   const records=Object.fromEntries(collections.map(key=>[key,[]]));
   const states=Object.fromEntries(collections.map(key=>[key,'loading']));
   const disposers=[], dateTimers=new Map(), dateState=new Map();
   let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest', currentProjectPicked=false;
-  let noteBusy=false, noteComposeOpen=false, renameOpen=false, renameBusy=false;
+  let noteBusy=false, noteComposeOpen=false, renameOpen=false, renameBusy=false, addProjectOpen=false, projectBusy=false;
+  const projectDeleteArm=W.createDeleteArm(()=>syncDeleteProject());
   let ui, unbindHistory, unbindStaff, unbindStaffLog;
   // "Unseen" project tracking (per-browser, shared with index.html via the same
   // localStorage key/origin): a project stays flagged until you actually open it,
@@ -42,7 +43,18 @@
     $('noteSubmit').disabled=!authReady||noteBusy||states.siteMemos!=='ready';
     $('renameProjectBtn').disabled=!authReady||states.siteMemos!=='ready';
     $('renameProjectSave').disabled=!authReady||renameBusy||states.siteMemos!=='ready';
+    const projectsReady=authReady&&states.siteMemos==='ready'&&states.siteMemoComments==='ready'&&states.siteProjects==='ready';
+    $('projectAdd').disabled=!projectsReady||projectBusy;$('projectAddMobile').disabled=$('projectAdd').disabled;$('addProjectSave').disabled=!projectsReady||projectBusy;
+    $('deleteProjectBtn').disabled=!projectsReady||projectBusy;
   }
+  function syncDeleteProject(){
+    const armed=projectDeleteArm.isArmed(currentProject),count=records.siteMemos.filter(n=>n.projectTag===currentProject).length;
+    $('deleteProjectBtn').classList.toggle('armed',armed);
+    $('deleteProjectBtn').textContent=projectBusy?'削除中…':armed?'本当に削除？'+(count?'（メモ'+count+'件も消えます）':'')+'もう一度クリック':'案件を削除';
+  }
+  // Project list = built-in TAGS + tags found in memos + names added via 「＋」,
+  // minus deleted ones (see W.visibleProjects).
+  function visibleProjects(){return W.visibleProjects(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag)),records.siteProjects);}
   function showView(view){currentView=view;ui.resetConfirmation();$('navNotes').setAttribute('aria-pressed',String(view==='notes'));$('navStaff').setAttribute('aria-pressed',String(view==='staff'));status();if(view==='staff')renderStaff();else render();}
   $('navNotes').addEventListener('click',()=>showView('notes'));
   $('navStaff').addEventListener('click',()=>showView('staff'));
@@ -51,7 +63,7 @@
   // Search bypasses the project selection and shows matches from every project,
   // so picking a project from the sidebar drops back out of search.
   function clearMemoSearch(){$('memoSearch').value='';$('memoSearchClear').hidden=true;}
-  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();closeNoteCompose();closeRename();clearMemoSearch();render(true);}
+  function chooseProject(tag){currentProject=tag;ui.resetConfirmation();projectDeleteArm.reset();$('projectError').hidden=true;closeNoteCompose();closeRename();clearMemoSearch();render(true);}
   $('memoSearch').addEventListener('input',()=>{$('memoSearchClear').hidden=!$('memoSearch').value.trim();renderHistory();});
   $('memoSearchClear').addEventListener('click',()=>{clearMemoSearch();renderHistory();});
   // Renaming only ever touches siteMemos.projectTag (see W.renameProject) — a
@@ -67,8 +79,7 @@
     if(!raw){$('renameProjectError').textContent='新しい案件名を入力してください。';$('renameProjectError').hidden=false;return;}
     const newTag=W.canonicalProject(raw);
     if(newTag===currentProject){closeRename();return;}
-    const known=new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag)));
-    if(known.has(newTag)){$('renameProjectError').textContent='その名前の案件はすでにあります。';$('renameProjectError').hidden=false;return;}
+    if(visibleProjects().includes(newTag)){$('renameProjectError').textContent='その名前の案件はすでにあります。';$('renameProjectError').hidden=false;return;}
     const oldTag=currentProject;renameBusy=true;status();$('renameProjectError').hidden=true;
     try{
       await W.renameProject(db,records.siteMemos,oldTag,newTag);
@@ -76,6 +87,38 @@
       currentProject=newTag;closeRename();render(true);
     }catch(err){$('renameProjectError').textContent='変更できませんでした。もう一度お試しください。';$('renameProjectError').hidden=false;}
     finally{renameBusy=false;status();}
+  });
+  function closeAddProject(){addProjectOpen=false;$('addProjectForm').hidden=true;$('addProjectError').hidden=true;}
+  function toggleAddProject(){
+    addProjectOpen=!addProjectOpen;$('addProjectForm').hidden=!addProjectOpen;$('addProjectError').hidden=true;
+    if(addProjectOpen){closeRename();$('addProjectInput').value='';$('addProjectInput').focus();}
+  }
+  $('projectAdd').addEventListener('click',toggleAddProject);$('projectAddMobile').addEventListener('click',toggleAddProject);
+  $('addProjectCancel').addEventListener('click',closeAddProject);
+  async function saveAddProject(){
+    if(projectBusy||!authReady||states.siteProjects!=='ready')return;
+    const raw=$('addProjectInput').value.trim();
+    if(!raw){$('addProjectError').textContent='案件名を入力してください。';$('addProjectError').hidden=false;return;}
+    const tag=W.canonicalProject(raw);
+    if(visibleProjects().includes(tag)){$('addProjectError').textContent='その名前の案件はすでにあります。';$('addProjectError').hidden=false;return;}
+    projectBusy=true;status();$('addProjectError').hidden=true;
+    try{await W.setProjectRemoved(db,tag,false);closeAddProject();chooseProject(tag);}
+    catch(err){$('addProjectError').textContent='追加できませんでした。もう一度お試しください。';$('addProjectError').hidden=false;}
+    finally{projectBusy=false;status();}
+  }
+  $('addProjectSave').addEventListener('click',saveAddProject);
+  $('addProjectInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();void saveAddProject();}});
+  // Deleting a project removes all of its memos and their comments (two-click confirm).
+  $('deleteProjectBtn').addEventListener('click',async()=>{
+    if(projectBusy||!authReady||states.siteProjects!=='ready')return;
+    if(!projectDeleteArm.press(currentProject))return;
+    const tag=currentProject;projectBusy=true;status();syncDeleteProject();$('projectError').hidden=true;
+    try{
+      await W.deleteProject(db,records.siteMemos,records.siteMemoComments,tag);
+      delete seenActivity[tag];saveSeen();
+      currentProject=W.sortProjects(visibleProjects().filter(t=>t!==tag),projectActivity())[0]||'その他';closeRename();closeNoteCompose();render(true);
+    }catch(err){$('projectError').textContent='案件を削除できませんでした。もう一度お試しください。';$('projectError').hidden=false;}
+    finally{projectBusy=false;status();syncDeleteProject();}
   });
   $('noteAddToggle').addEventListener('click',()=>{
     noteComposeOpen=!noteComposeOpen;$('noteForm').hidden=!noteComposeOpen;$('noteAddToggle').textContent=noteComposeOpen?'－ 閉じる':'＋ 新しい記録を追加';
@@ -101,7 +144,10 @@
     // First time this browser sees the feature, treat all existing activity as
     // already seen so the whole history doesn't light up at once.
     if(!seenBootstrapped&&states.siteMemos==='ready'&&states.siteMemoComments==='ready'){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;saveSeen();markBootstrapped();}
-    const projects=W.sortProjects([...new Set(W.TAGS.concat(records.siteMemos.map(n=>n.projectTag),[currentProject]))],activity);
+    const visible=visibleProjects();
+    // A project deleted elsewhere (or by this tab) must not stay selected.
+    if(states.siteProjects==='ready'&&!projectBusy&&!visible.includes(currentProject)&&visible.length)currentProject=W.sortProjects(visible,activity)[0];
+    const projects=W.sortProjects([...new Set(visible.concat([currentProject]))],activity);
     // Before the user has ever picked a project themselves, default to whichever
     // one is actually most relevant (top of the recency sort) instead of always
     // ジムセレ — otherwise the sort order and the default selection disagree.
@@ -138,7 +184,7 @@
     // the next unrelated render to catch up.
     if(currentView==='notes'){const before=seenActivity[currentProject];markSeen(currentProject,projectActivity());if(seenActivity[currentProject]!==before)renderProjects();}
   }
-  function render(force=false){renderProjects();$('projectHeading').textContent=W.labelTag(currentProject);renderHistory(force);}
+  function render(force=false){renderProjects();$('projectHeading').textContent=W.labelTag(currentProject);syncDeleteProject();renderHistory(force);}
   function chooseStaff(id){currentStaffId=id;ui.resetConfirmation();renderStaff(true);}
   function renderStaffList(){
     const list=records.staffProfiles.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'));
@@ -187,7 +233,7 @@
   function stopData(){generation++;disposers.splice(0).forEach(stop=>stop());dateTimers.forEach(clearTimeout);dateTimers.clear();dateState.clear();adding=false;}
   function connectData(){
     stopData();const session=generation;
-    const normalizers={siteMemos:W.normalizeMemo,siteMemoComments:doc=>W.normalizeComment(doc,'memoId'),staffProfiles:W.normalizeStaff,staffNotes:doc=>W.normalizeComment(doc,'staffId')};
+    const normalizers={siteMemos:W.normalizeMemo,siteMemoComments:doc=>W.normalizeComment(doc,'memoId'),siteProjects:W.normalizeSiteProject,staffProfiles:W.normalizeStaff,staffNotes:doc=>W.normalizeComment(doc,'staffId')};
     collections.forEach(key=>{
       states[key]='loading';let timer=setTimeout(()=>{if(session===generation){states[key]='error';status();}},12000);disposers.push(()=>clearTimeout(timer));
       disposers.push(db.collection(key).onSnapshot(snap=>{if(session!==generation)return;clearTimeout(timer);records[key]=snap.docs.map(normalizers[key]);states[key]='ready';status();if(currentView==='notes')render();else renderStaff();},()=>{if(session!==generation)return;clearTimeout(timer);states[key]='error';status();if(currentView==='notes')renderHistory();else renderStaff();}));
@@ -200,6 +246,6 @@
     // Reuse an existing Google/anonymous session; never replace another tab's login.
     if(!signingIn){signingIn=true;auth.signInAnonymously().catch(err=>{$('status').hidden=false;$('status').className='status error';$('status').textContent='接続できませんでした。時間をおいて再度開いてください。';}).finally(()=>{signingIn=false;});}
   });
-  window.addEventListener('pagehide',()=>{authReady=false;stopAuth();stopData();unbindHistory();unbindStaff();unbindStaffLog();ui.dispose();});
+  window.addEventListener('pagehide',()=>{authReady=false;stopAuth();stopData();unbindHistory();unbindStaff();unbindStaffLog();ui.dispose();projectDeleteArm.dispose();});
   window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();

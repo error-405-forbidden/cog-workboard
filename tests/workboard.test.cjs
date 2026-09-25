@@ -93,3 +93,27 @@ for(const page of ['index','notes'])test(page+' script starts with all real HTML
  if(page==='index'){const date=doc.getElementById('boardDate');assert.match(date.value,/^\d{4}-\d{2}-\d{2}$/);auth.currentUser={uid:'anon',isAnonymous:true};authHandler(auth.currentUser);assert.equal(signOutCalls,0);assert.equal(doc.getElementById('appRoot').hidden,true);}
  events.get('pagehide')();assert([...rtdb.listeners.values()].every(set=>set.size===0));assert.equal(clock.jobs.size,0);
 });
+test('W.visibleProjects lists built-in, memo and added names, and hides deleted ones',()=>{
+ const {W}=fixture();
+ const list=W.visibleProjects(['ジムセレ','買取サファリ','その他','旧案件'],[{name:'新案件',removed:false},{name:'その他',removed:true},{name:'旧案件',removed:true}]);
+ assert.equal(list.join(','),'ジムセレ,買取サファリ,新案件');
+ assert.equal(W.projectKey('共通/インフラ.x').includes('/'),false);assert.equal(W.projectKey('共通/インフラ.x').includes('.'),false);
+});
+test('W.deleteProject removes the project\'s memos and their comments, leaves other projects, and hides the name',async()=>{
+ const {W,db,rtdb}=fixture();
+ rtdb.external('siteMemos/b',{text:'other',date:'2026-09-09',author:'A',projectTag:'買取サファリ',createdAt:'2026-09-09T00:00:00Z'});
+ rtdb.external('siteMemoComments/c1',{memoId:'a',text:'on gym',author:'A',createdAt:'2026-09-09T00:00:00Z'});
+ rtdb.external('siteMemoComments/c2',{memoId:'b',text:'on other',author:'A',createdAt:'2026-09-09T00:00:00Z'});
+ const memos=Object.entries(rtdb.read('siteMemos')).map(([id,v])=>({...v,id})),comments=Object.entries(rtdb.read('siteMemoComments')).map(([id,v])=>({...v,id}));
+ assert.equal(await W.deleteProject(db,memos,comments,'ジムセレ'),1);
+ assert.equal(rtdb.read('siteMemos/a'),null);assert.equal(rtdb.read('siteMemoComments/c1'),null);
+ assert.notEqual(rtdb.read('siteMemos/b'),null);assert.notEqual(rtdb.read('siteMemoComments/c2'),null);
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ')).removed,true);
+ await W.setProjectRemoved(db,'ジムセレ',false);assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ')).removed,false);
+});
+test('W.renameProject hides the old name and keeps the new one listed even without memos',async()=>{
+ const {W,db,rtdb}=fixture();
+ await W.renameProject(db,[],'新案件','新案件2');
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('新案件')).removed,true);
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('新案件2')).removed,false);
+});

@@ -78,6 +78,34 @@
   W.renameProject = async (db, memos, from, to) => {
     const targets = memos.filter(m => m.projectTag === from);
     for (const m of targets) await db.doc('siteMemos/' + m.id).update({projectTag: to});
+    // The old name must not linger as an empty entry (a built-in TAGS name or one
+    // added via 「＋」 would otherwise stay listed), and the new one must stay
+    // listed even while it has no memos.
+    await W.setProjectRemoved(db, from, true);
+    await W.setProjectRemoved(db, to, false);
+    return targets.length;
+  };
+
+  // siteProjects: one document per project name that was explicitly added (＋) or
+  // deleted, keyed by the encoded name — {name, removed, updatedAt}. The list shown
+  // is TAGS + names found in memos/tasks + added names, minus removed names, so a
+  // deleted built-in or task-tag name does not come back on the next render.
+  W.projectKey = name => encodeURIComponent(name).replace(/\./g, '%2E');
+  W.normalizeSiteProject = doc => { const raw = doc.data() || {}; return {id:doc.id, name:W.canonicalProject(raw.name), removed:raw.removed === true}; };
+  W.visibleProjects = (names, siteProjects) => {
+    const removed = new Set(siteProjects.filter(p => p.removed).map(p => p.name));
+    const added = siteProjects.filter(p => !p.removed).map(p => p.name);
+    return [...new Set(names.concat(added).map(W.canonicalProject))].filter(name => !removed.has(name));
+  };
+  W.setProjectRemoved = (db, name, removed) => db.doc('siteProjects/' + W.projectKey(name)).update({name, removed, updatedAt:new Date().toISOString()});
+  // Deletes every memo of the project and every comment on those memos, then hides
+  // the name. Hiding comes last so a failure midway leaves the project visible and
+  // the delete can simply be retried.
+  W.deleteProject = async (db, memos, comments, name) => {
+    const targets = memos.filter(m => m.projectTag === name), ids = new Set(targets.map(m => m.id));
+    for (const c of comments.filter(c => ids.has(c.memoId))) await db.doc('siteMemoComments/' + c.id).delete();
+    for (const m of targets) await db.doc('siteMemos/' + m.id).delete();
+    await W.setProjectRemoved(db, name, true);
     return targets.length;
   };
 

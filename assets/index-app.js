@@ -187,13 +187,20 @@ const canonicalProject=W.canonicalProject;
 const noteCreatedDay=W.createdDay;
 const normalizeNote=W.normalizeMemo;
 let siteMemoComments=[],commentsReady=false,commentsFailed=false,commentsUnsubscribe=null,commentsTimer=null;
+let siteProjects=[],siteProjectsReady=false,siteProjectsUnsubscribe=null,addProjectOpen=false,projectBusy=false;
+const projectDeleteArm=W.createDeleteArm(()=>syncDeleteProject());
 let notesUI=null,notesUnbind=null;
 function resetNotesUI(){if(notesUnbind)notesUnbind();if(notesUI)notesUI.dispose();notesUI=W.createRecordsUI({db:()=>fsdb,records:key=>key==='siteMemos'?siteNotes:siteMemoComments,loaded:key=>key==='siteMemos'?notesHasData:commentsReady,error:key=>key==='siteMemoComments'&&commentsFailed,canWrite:key=>!!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email)&&(key==='siteMemos'?notesReady:commentsReady),author:()=>me,render:force=>renderNoteHistory(force)});notesUnbind=notesUI.bind($('noteHistory'));}
 
 function projectActivity(){return W.projectActivity(siteNotes,siteMemoComments);}
-function getNoteProjects(){return W.sortProjects([...new Set(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag),[noteProject]).map(canonicalProject))],projectActivity());}
+// Project list = built-in TAGS + task tags + memo tags + names added via 「＋」,
+// minus deleted ones (see W.visibleProjects).
+function visibleNoteProjects(){return W.visibleProjects(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag)),siteProjects);}
+function getNoteProjects(){return W.sortProjects([...new Set(visibleNoteProjects().concat([noteProject]))],projectActivity());}
 function projectNotes(project,order){return W.sortMemos(siteNotes.filter(n=>n.projectTag===canonicalProject(project)),order);}
-function syncNoteControls(){$('noteSubmit').disabled=!notesReady||noteBusy||!me;$('noteTitle').disabled=noteBusy;$('noteText').disabled=noteBusy;$('noteDate').disabled=noteBusy;$('notesProjectSelect').disabled=noteBusy;$('notesProjects').querySelectorAll('button').forEach(b=>b.disabled=noteBusy);$('noteSubmit').textContent=noteBusy?'保存中…':'この案件に追記';$('renameProjectBtn').disabled=!notesReady;$('renameProjectSave').disabled=!notesReady||renameBusy;}
+function syncNoteControls(){$('noteSubmit').disabled=!notesReady||noteBusy||!me;$('noteTitle').disabled=noteBusy;$('noteText').disabled=noteBusy;$('noteDate').disabled=noteBusy;$('notesProjectSelect').disabled=noteBusy;$('notesProjects').querySelectorAll('button').forEach(b=>b.disabled=noteBusy);$('noteSubmit').textContent=noteBusy?'保存中…':'この案件に追記';$('renameProjectBtn').disabled=!notesReady;$('renameProjectSave').disabled=!notesReady||renameBusy;
+ const projectsReady=notesReady&&commentsReady&&siteProjectsReady;$('projectAdd').disabled=!projectsReady||projectBusy;$('projectAddMobile').disabled=$('projectAdd').disabled;$('addProjectSave').disabled=!projectsReady||projectBusy;$('deleteProjectBtn').disabled=!projectsReady||projectBusy||noteBusy;}
+function syncDeleteProject(){const armed=projectDeleteArm.isArmed(noteProject),count=siteNotes.filter(n=>n.projectTag===noteProject).length;$('deleteProjectBtn').classList.toggle('armed',armed);$('deleteProjectBtn').textContent=projectBusy?'削除中…':armed?'本当に削除？'+(count?'（メモ'+count+'件も消えます）':'')+'もう一度クリック':'案件を削除';}
 let currentView='tasks';
 function showView(view){currentView=view;$('tasksView').hidden=view!=='tasks';$('notesView').hidden=view!=='notes';$('staffView').hidden=view!=='staff';$('showTasks').setAttribute('aria-pressed',String(view==='tasks'));$('showNotes').setAttribute('aria-pressed',String(view==='notes'));$('showStaff').setAttribute('aria-pressed',String(view==='staff'));if(view==='notes')renderNotes();else if(view==='staff')renderStaff();}
 $('showTasks').addEventListener('click',()=>showView('tasks'));$('showNotes').addEventListener('click',()=>showView('notes'));$('showStaff').addEventListener('click',()=>showView('staff'));
@@ -202,7 +209,7 @@ function saveNoteDraft(){noteDrafts.set(noteProject,{title:$('noteTitle').value,
 // so picking a project from the sidebar drops back out of search.
 function clearMemoSearch(){$('memoSearch').value='';$('memoSearchClear').hidden=true;}
 function closeRename(){renameOpen=false;$('renameProjectForm').hidden=true;$('renameProjectError').hidden=true;}
-function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();clearMemoSearch();closeRename();noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteTitle').value=draft?draft.title:'';$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
+function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();clearMemoSearch();closeRename();projectDeleteArm.reset();errorAt('projectError','');noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteTitle').value=draft?draft.title:'';$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
 $('notesProjectSelect').addEventListener('change',e=>chooseNoteProject(e.target.value));$('noteTitle').addEventListener('input',saveNoteDraft);$('noteText').addEventListener('input',saveNoteDraft);$('noteDate').addEventListener('input',saveNoteDraft);$('noteSort').addEventListener('change',renderNoteHistory);
 $('memoSearch').addEventListener('input',()=>{$('memoSearchClear').hidden=!$('memoSearch').value.trim();renderNoteHistory();});
 $('memoSearchClear').addEventListener('click',()=>{clearMemoSearch();renderNoteHistory();});
@@ -228,12 +235,47 @@ $('renameProjectSave').addEventListener('click',async()=>{
  }catch(err){$('renameProjectError').textContent='変更できませんでした。もう一度お試しください。';$('renameProjectError').hidden=false;}
  finally{renameBusy=false;syncNoteControls();}
 });
+function closeAddProject(){addProjectOpen=false;$('addProjectForm').hidden=true;$('addProjectError').hidden=true;}
+function toggleAddProject(){
+ addProjectOpen=!addProjectOpen;$('addProjectForm').hidden=!addProjectOpen;$('addProjectError').hidden=true;
+ if(addProjectOpen){closeRename();$('addProjectInput').value='';$('addProjectInput').focus();}
+}
+$('projectAdd').addEventListener('click',toggleAddProject);$('projectAddMobile').addEventListener('click',toggleAddProject);
+$('addProjectCancel').addEventListener('click',closeAddProject);
+async function saveAddProject(){
+ if(projectBusy||!siteProjectsReady||!db)return;
+ const raw=$('addProjectInput').value.trim();
+ if(!raw){$('addProjectError').textContent='案件名を入力してください。';$('addProjectError').hidden=false;return;}
+ const tag=canonicalProject(raw);
+ if(visibleNoteProjects().includes(tag)){$('addProjectError').textContent='その名前の案件はすでにあります。';$('addProjectError').hidden=false;return;}
+ projectBusy=true;syncNoteControls();$('addProjectError').hidden=true;
+ try{await W.setProjectRemoved(db,tag,false);closeAddProject();chooseNoteProject(tag);toast(tag+'を追加しました');}
+ catch(err){$('addProjectError').textContent='追加できませんでした。もう一度お試しください。';$('addProjectError').hidden=false;}
+ finally{projectBusy=false;syncNoteControls();}
+}
+$('addProjectSave').addEventListener('click',saveAddProject);
+$('addProjectInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();void saveAddProject();}});
+// Deleting a project removes all of its memos and their comments (two-click confirm).
+// Task 案件タグ are left untouched; the name is only hidden from this list.
+$('deleteProjectBtn').addEventListener('click',async()=>{
+ if(projectBusy||noteBusy||!siteProjectsReady||!db)return;
+ if(!projectDeleteArm.press(noteProject))return;
+ const tag=noteProject;projectBusy=true;syncNoteControls();syncDeleteProject();errorAt('projectError','');
+ try{
+  await W.deleteProject(db,siteNotes,siteMemoComments,tag);
+  delete seenActivity[tag];saveSeen();noteDrafts.delete(tag);
+  noteProject=W.sortProjects(visibleNoteProjects().filter(t=>t!==tag),projectActivity())[0]||'その他';closeRename();renderNotes();toast(labelTag(tag)+'を削除しました');
+ }catch(err){errorAt('projectError','案件を削除できませんでした。もう一度お試しください。');}
+ finally{projectBusy=false;syncNoteControls();syncDeleteProject();}
+});
 function renderNoteProjects(){
  const activity=projectActivity();
  // First time this browser sees the feature, treat all existing activity as
  // already seen so the whole history doesn't light up at once — only activity
  // from here on should flag anything.
  if(!seenBootstrapped&&notesHasData&&commentsReady){for(const [tag,ts] of activity)if(!(tag in seenActivity))seenActivity[tag]=ts;saveSeen();markBootstrapped();}
+ // A project deleted elsewhere (or by this tab) must not stay selected.
+ const visible=visibleNoteProjects();if(siteProjectsReady&&!projectBusy&&!visible.includes(noteProject)&&visible.length)noteProject=W.sortProjects(visible,activity)[0];
  const projects=getNoteProjects();
  // Before the user has ever picked a project themselves, default to whichever
  // one is actually most relevant (top of the recency sort) instead of always
@@ -269,13 +311,13 @@ function renderNoteHistory(force=false){
  // sidebar doesn't wait for the next unrelated render to catch up.
  if(currentView==='notes'){const before=seenActivity[noteProject];markSeen(noteProject,projectActivity());if(seenActivity[noteProject]!==before)renderNoteProjects();}
 }
-function renderNotes(){renderNoteProjects();$('notesProjectHeading').textContent=labelTag(noteProject);renderNoteHistory();}
+function renderNotes(){renderNoteProjects();$('notesProjectHeading').textContent=labelTag(noteProject);syncDeleteProject();renderNoteHistory();}
 function notesState(state,message){notesReady=state==='ready';$('notesStatus').hidden=notesReady;$('notesStatus').className='notes-status'+(state==='error'?' error':'');$('notesStatusText').textContent=message||'サイトメモを読み込み中…';$('notesRetry').hidden=state!=='error';$('noteHistory').setAttribute('aria-busy',String(state==='loading'));syncNoteControls();}
-function stopNotes(){clearTimeout(commentsTimer);if(commentsUnsubscribe)commentsUnsubscribe();commentsUnsubscribe=null;commentsReady=false;commentsFailed=false;++notesGeneration;clearTimeout(notesTimer);if(typeof notesUnsubscribe==='function'){try{notesUnsubscribe();}catch(e){}}notesUnsubscribe=null;notesState('loading');}
+function stopNotes(){clearTimeout(commentsTimer);if(commentsUnsubscribe)commentsUnsubscribe();commentsUnsubscribe=null;commentsReady=false;commentsFailed=false;if(siteProjectsUnsubscribe)siteProjectsUnsubscribe();siteProjectsUnsubscribe=null;siteProjectsReady=false;projectDeleteArm.reset();++notesGeneration;clearTimeout(notesTimer);if(typeof notesUnsubscribe==='function'){try{notesUnsubscribe();}catch(e){}}notesUnsubscribe=null;notesState('loading');}
 function connectNotes(connection){stopNotes();const generation=notesGeneration;let receivedLive=false;const onError=()=>{if(generation!==notesGeneration)return;receivedLive=true;clearTimeout(notesTimer);notesState('error','サイトメモを読み込めませんでした。表示中の記録が最新でない可能性があります。入力内容は残っています。');};
  notesTimer=setTimeout(()=>{if(generation===notesGeneration)notesState('error','サイトメモの接続に時間がかかっています。接続すると自動で表示します。');},12000);
  function onData(snap,live){if(generation!==notesGeneration||(!live&&receivedLive))return;if(live)receivedLive=true;clearTimeout(notesTimer);siteNotes=snap.docs.map(normalizeNote);notesHasData=true;notesState('ready');renderNotes();}
- try{commentsTimer=setTimeout(()=>{if(generation===notesGeneration){commentsReady=false;commentsFailed=true;renderNoteHistory();}},12000);commentsUnsubscribe=connection.collection('siteMemoComments').onSnapshot(snap=>{if(generation!==notesGeneration)return;clearTimeout(commentsTimer);siteMemoComments=snap.docs.map(d=>W.normalizeComment(d,'memoId'));commentsReady=true;commentsFailed=false;renderNoteHistory();},()=>{if(generation!==notesGeneration)return;clearTimeout(commentsTimer);commentsReady=false;commentsFailed=true;renderNoteHistory();});const collection=connection.collection('siteMemos');notesUnsubscribe=collection.onSnapshot(snap=>onData(snap,true),onError);collection.get().then(snap=>onData(snap,false)).catch(()=>{});}catch(e){onError();}
+ try{commentsTimer=setTimeout(()=>{if(generation===notesGeneration){commentsReady=false;commentsFailed=true;renderNoteHistory();}},12000);commentsUnsubscribe=connection.collection('siteMemoComments').onSnapshot(snap=>{if(generation!==notesGeneration)return;clearTimeout(commentsTimer);siteMemoComments=snap.docs.map(d=>W.normalizeComment(d,'memoId'));commentsReady=true;commentsFailed=false;renderNoteHistory();},()=>{if(generation!==notesGeneration)return;clearTimeout(commentsTimer);commentsReady=false;commentsFailed=true;renderNoteHistory();});siteProjectsUnsubscribe=connection.collection('siteProjects').onSnapshot(snap=>{if(generation!==notesGeneration)return;siteProjects=snap.docs.map(W.normalizeSiteProject);siteProjectsReady=true;renderNotes();},()=>{if(generation!==notesGeneration)return;siteProjectsReady=false;syncNoteControls();});const collection=connection.collection('siteMemos');notesUnsubscribe=collection.onSnapshot(snap=>onData(snap,true),onError);collection.get().then(snap=>onData(snap,false)).catch(()=>{});}catch(e){onError();}
 }
 $('notesRetry').addEventListener('click',()=>{if(db)connectNotes(db);else boot();});
 $('noteForm').addEventListener('submit',async e=>{
@@ -407,10 +449,10 @@ const stopAuth=auth.onAuthStateChanged(function(user){
     $('appRoot').hidden=true;
   }
 });
-function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();syncControls();
+function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];siteProjects=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();syncControls();
  stopStaffData();staffRecords={staffProfiles:[],staffNotes:[]};staffStates={staffProfiles:'loading',staffNotes:'loading'};currentStaffId=null;if(staffUI)staffUI.dispose();$('staffDetail').replaceChildren();$('staffLog').replaceChildren();$('staffLogActions').replaceChildren();$('staffList').replaceChildren();
 }
-window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();deleteArm.dispose();samplesArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
+window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();deleteArm.dispose();samplesArm.dispose();projectDeleteArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 let lastDay=dateStr();const dayTimer=setInterval(()=>{renderDate();const today=dateStr();if(lastDay!==today){if(boardDate===lastDay){boardDate=today;$('boardDate').value=boardDate;}lastDay=today;renderBoard();}},60000);
 })();
