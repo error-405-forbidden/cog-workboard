@@ -11,10 +11,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- ?v= is a manual cache-buster — GitHub Pages caches these for 10 min (Cache-Control: max-age=600),
      so bump this value whenever any assets/*.css or assets/*.js file changes. -->
-<link rel="stylesheet" href="assets/index.css?v=20261002a">
-<link rel="stylesheet" href="assets/records.css?v=20261002a">
-<link rel="stylesheet" href="assets/dashboard.css?v=20261002a">
-<link rel="stylesheet" href="assets/compact.css?v=20261002a">
+<link rel="stylesheet" href="assets/index.css?v=20261002b">
+<link rel="stylesheet" href="assets/records.css?v=20261002b">
+<link rel="stylesheet" href="assets/dashboard.css?v=20261002b">
+<link rel="stylesheet" href="assets/compact.css?v=20261002b">
 </head>
 <body>
 <div id="loginScreen" class="login-screen">
@@ -38,7 +38,10 @@
 <div class="notice error" id="dbStatus" role="alert" hidden><div><strong>タスクを読み込めませんでした</strong><p id="dbErrorDetail">接続を確認して、再接続してください。入力中の内容はそのまま残っています。</p></div><button type="button" class="btn" id="dbRetry">再接続</button></div>
 <main>
 <nav class="view-nav" aria-label="表示する画面"><button type="button" id="showTasks" aria-pressed="true" aria-controls="tasksView">タスクボード</button><button type="button" id="showNotes" aria-pressed="false" aria-controls="notesView">サイトメモ</button><button type="button" id="showStaff" aria-pressed="false" aria-controls="staffView">外注さん</button></nav>
+<div class="lay-tools"><button type="button" class="link-btn" id="layoutEdit" aria-pressed="false">配置を編集</button><button type="button" class="link-btn" id="layoutReset" hidden>この画面を初期配置に戻す</button><span class="lay-status" id="layoutStatus" role="status" hidden></span></div>
 <div id="tasksView">
+<div class="lay-root" data-layout="tasks" data-widths="1fr">
+<div class="lay-box" data-box="quickadd" data-col="0" data-title="今日やることを追加">
 <section class="quickadd" aria-labelledby="qaHeading">
  <div class="qa-heading"><h2 id="qaHeading">今日やることを追加</h2><span>タイトルだけで登録できます</span><span id="qaDateHint" class="shared-label" hidden></span></div>
  <form id="qaForm"><div class="qa-row"><label for="qaTitle" class="sr-only">タスクのタイトル</label><input id="qaTitle" placeholder="例：ジムセレの記事を公開する" required autocomplete="off" maxlength="300"><button type="submit" class="btn primary" id="qaSubmit" disabled><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>追加</span></button></div>
@@ -51,11 +54,15 @@
   <fieldset class="field full"><legend>案件タグ <small>複数選択可</small></legend><div class="chip-row" id="qaTagRow"></div></fieldset>
  </div></div><p class="form-error" id="qaError" role="alert" hidden></p></form>
 </section>
+</div>
+<div class="lay-box" data-box="board" data-col="0" data-title="タスクボード">
 <div class="board-toolbar"><div class="board-title"><h2 id="boardTitle">自分のタスク</h2><div class="counts" id="counts"><span>未完了 <strong>—</strong></span><span>本日完了 <strong>—</strong></span></div></div><div class="date-nav" role="group" aria-label="表示する日付"><button type="button" class="step" id="boardDatePrev" aria-label="前の日">‹</button><label for="boardDate" class="sr-only">表示する日付</label><input type="date" id="boardDate"><button type="button" class="step" id="boardDateNext" aria-label="次の日">›</button><button type="button" class="link-btn" id="boardDateToday">今日</button></div><div class="scope-toggle" role="group" aria-label="表示範囲"><button id="scopeMine" type="button" aria-pressed="true">自分</button><button id="scopeAll" type="button" aria-pressed="false">全員</button></div></div>
 <div id="sampleNote" class="sample-note" hidden><span>サンプルタスクが含まれています。</span><button type="button" class="btn quiet danger" id="clearSamples">サンプルを削除</button></div>
 <div class="mobile-tabs" id="mobileTabs" role="group" aria-label="表示するステータス"></div>
 <div class="board-scroll"><div class="board" id="board" aria-label="タスクボード" aria-busy="true"><div class="board-state"><span class="spinner" aria-hidden="true"></span><strong>タスクを読み込み中</strong><p>初回の接続には10秒ほどかかることがあります。</p></div></div></div>
 <div class="board-foot"><span><i class="legend-mark"></i>登録から3日目以降の未完了タスクを色で表示</span><span>カードを開くと、詳細の編集・ログの追記ができます</span></div>
+</div>
+</div>
 
 </div>
 <section id="notesView" aria-labelledby="notesHeading" hidden>
@@ -65,9 +72,7 @@
    <button type="button" class="link-btn" id="memoSearchClear" hidden>クリア</button>
   </div></div>
  <div class="notes-status" id="notesStatus" role="status"><span id="notesStatusText">サイトメモを読み込み中…</span><button type="button" class="btn" id="notesRetry" hidden>再接続</button></div>
- <div class="notes-layout">
-  <aside class="notes-projects" aria-label="サイト・案件を選択"><div class="notes-projects-head"><h3>サイト・案件</h3><button type="button" id="projectAdd" title="案件を追加">＋</button></div><div class="project-list" id="notesProjects"></div></aside>
-  <div class="notes-main">
+ <div class="notes-head-area">
    <div class="notes-mobile-picker"><label for="notesProjectSelect">サイト・案件</label><select id="notesProjectSelect"></select><button type="button" id="projectAddMobile" class="mobile-staff-add" aria-label="案件を追加">＋</button></div>
    <div class="rename-project" id="addProjectForm" hidden>
     <label for="addProjectInput" class="sr-only">追加する案件名</label>
@@ -89,31 +94,42 @@
     <button type="button" class="link-btn" id="renameProjectCancel">キャンセル</button>
     <p class="form-error" id="renameProjectError" role="alert" hidden></p>
    </div>
-   <div class="site-columns" id="siteColumns">
-    <div class="site-info-pane" id="siteInfo"></div>
-    <div class="site-memos">
+ </div>
+ <div class="lay-root" id="siteColumns" data-layout="notes" data-widths="220px|1fr|1.6fr">
+<div class="lay-box lay-hide-mobile" data-box="list" data-col="0" data-title="サイト・案件">
+  <aside class="notes-projects" aria-label="サイト・案件を選択"><div class="notes-projects-head"><h3>サイト・案件</h3><button type="button" id="projectAdd" title="案件を追加">＋</button></div><div class="project-list" id="notesProjects"></div></aside>
+</div>
+<div class="lay-box" data-box="siteinfo" data-col="1" data-title="サイト情報">
+<div class="site-info-pane" id="siteInfo"></div>
+</div>
+<div class="lay-box" data-box="compose" data-col="2" data-title="メモを追記">
     <form class="note-compose" id="noteForm"><h3>メモを追記</h3><div class="field"><label for="noteTitle">タイトル（任意）</label><input id="noteTitle" maxlength="120" placeholder="例：サーバー移転のご案内"></div><div class="field"><label for="noteText" class="sr-only">申し送り・経緯・注意点</label><textarea id="noteText" required placeholder="例：サーバー移転のため、今週はメンテナンス厳禁。再開日は別途連絡。"></textarea></div>
      <div class="note-compose-foot"><div class="note-date-author"><div class="field"><label for="noteDate">記録日</label><input type="date" id="noteDate" required></div><span class="note-author" id="noteAuthor"></span></div><button type="submit" class="btn primary" id="noteSubmit" disabled>この案件に追記</button></div>
      <p class="note-guidance">変更や訂正も、新しいメモとして追記します。過去の記録はそのまま残ります。</p><p class="form-error" id="noteError" role="alert" hidden></p>
     </form>
+</div>
+<div class="lay-box" data-box="history" data-col="2" data-title="これまでの記録">
     <div class="note-history-head"><h3 id="noteHistoryHeading">これまでの記録</h3><div class="sort-control"><label for="noteSort">表示順</label><select id="noteSort"><option value="newest">新しい順</option><option value="oldest">古い順</option></select></div></div>
     <div id="noteHistory" aria-labelledby="noteHistoryHeading" aria-busy="true"></div>
-    </div>
-   </div>
-  </div>
+</div>
  </div>
 </section>
 <section id="staffView" aria-labelledby="staffHeading" hidden>
  <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div></div>
  <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
  <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
- <div class="staff-columns">
+ <div class="lay-root" data-layout="staff" data-widths="1fr|1.2fr|220px">
+<div class="lay-box" data-box="profile" data-col="0" data-title="プロフィール">
   <div class="staff-profile-pane"><div id="staffDetail"></div></div>
+</div>
+<div class="lay-box" data-box="log" data-col="1" data-title="ログ">
   <div class="staff-log-pane" id="staffLogPane"><div class="staff-log-head"><h3 class="staff-log-heading">ログ</h3><div class="staff-log-controls"><span id="staffLogActions"></span><div class="sort-control"><label for="staffLogSort">表示順</label><select id="staffLogSort"><option value="newest">新しい順</option><option value="oldest">古い順</option></select></div></div></div><div id="staffLog"></div></div>
+</div>
+<div class="lay-box lay-hide-mobile" data-box="list" data-col="2" data-title="外注さん一覧">
   <aside class="notes-projects staff-list-pane" aria-label="外注さんを選択"><div class="notes-projects-head"><h3>外注さん</h3><button type="button" id="staffAdd" title="新しく追加">＋</button></div><div class="project-list" id="staffList"></div></aside>
+</div>
  </div>
-</section>
-</main>
+
 </div>
 <datalist id="assignees"></datalist>
 <dialog class="sheet" id="editDialog" aria-labelledby="editHeading">
@@ -140,9 +156,10 @@
  <div class="sheet-foot"><button type="button" class="btn" id="refreshSummary">最新の内容に更新</button><button type="button" class="btn primary" id="copySummary"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>テキストをコピー</button></div>
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script src="assets/firebase-config.js?v=20261002a"></script>
-<script src="assets/workboard-core.js?v=20261002a"></script>
-<script src="assets/records-ui.js?v=20261002a"></script>
-<script src="assets/index-app.js?v=20261002a"></script>
+<script src="assets/firebase-config.js?v=20261002b"></script>
+<script src="assets/workboard-core.js?v=20261002b"></script>
+<script src="assets/records-ui.js?v=20261002b"></script>
+<script src="assets/layout.js?v=20261002b"></script>
+<script src="assets/index-app.js?v=20261002b"></script>
 </body>
 </html>

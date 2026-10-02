@@ -3,6 +3,7 @@
   const W=Workboard, E=W.esc, $=id=>document.getElementById(id);
   firebase.initializeApp(WorkboardFirebase);
   const auth=firebase.auth(), db=W.createDb(firebase.database());
+  const layout=W.createLayout({editButton:$('layoutEdit'),resetButton:$('layoutReset'),statusEl:$('layoutStatus')});
   const collections=['siteMemos','siteMemoComments','siteProjects','staffProfiles','staffNotes'];
   const records=Object.fromEntries(collections.map(key=>[key,[]]));
   const states=Object.fromEntries(collections.map(key=>[key,'loading']));
@@ -233,9 +234,9 @@
   }
   $('staffDetail').addEventListener('change',e=>{if(e.target.id==='staffNextDate')void saveStaffNextDate(e.target.dataset.id,e.target.value);});
   $('staffDetail').addEventListener('click',e=>{const b=e.target.closest('[data-next-clear]');if(b&&!b.disabled)void saveStaffNextDate(b.dataset.nextClear,'');});
-  function stopData(){generation++;disposers.splice(0).forEach(stop=>stop());dateTimers.forEach(clearTimeout);dateTimers.clear();dateState.clear();adding=false;}
+  function stopData(){layout.disconnect();generation++;disposers.splice(0).forEach(stop=>stop());dateTimers.forEach(clearTimeout);dateTimers.clear();dateState.clear();adding=false;}
   function connectData(){
-    stopData();const session=generation;
+    stopData();const session=generation;layout.connect(db);
     const normalizers={siteMemos:W.normalizeMemo,siteMemoComments:doc=>W.normalizeComment(doc,'memoId'),siteProjects:W.normalizeSiteProject,staffProfiles:W.normalizeStaff,staffNotes:doc=>W.normalizeComment(doc,'staffId')};
     collections.forEach(key=>{
       states[key]='loading';let timer=setTimeout(()=>{if(session===generation){states[key]='error';status();}},12000);disposers.push(()=>clearTimeout(timer));

@@ -130,11 +130,31 @@ dialog .sheet-foot{padding:10px 16px}
   .staff-list-pane{display:none}
 }
 /* サイト情報 pane beside the memos (same look as the 外注さん profile) */
-.site-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:16px;align-items:start}
-.site-info-pane,.site-memos{min-width:0}
-.site-columns.searching{grid-template-columns:minmax(0,1fr)}
-.site-columns.searching .site-info-pane{display:none}
 .site-info-empty{color:var(--muted)}
 .site-info .project-note-text a{color:var(--accent);overflow-wrap:anywhere}
 .site-info .edit-form input,.site-info .edit-form textarea{width:100%;margin-bottom:10px}
-@media(max-width:1100px){.site-columns{grid-template-columns:minmax(0,1fr)}}
+/* Movable boxes (assets/layout.js): shared order, per-browser collapse */
+.lay-tools{display:flex;align-items:center;justify-content:flex-end;gap:14px;flex-wrap:wrap;margin-top:6px}
+.lay-status{font-size:13px;color:var(--muted)}
+.lay-status.error{color:var(--red)}
+.lay-root{display:grid;gap:16px;align-items:start;margin-top:16px}
+.lay-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.lay-col[hidden]{display:none}
+.lay-box{min-width:0}
+.lay-bar{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:0 2px 4px;user-select:none}
+.lay-title{flex:1;font-weight:700;letter-spacing:.04em}
+.lay-handle{display:none}
+.lay-toggle{background:transparent;border:0;color:var(--muted);font-size:11px;padding:2px 6px;min-height:0;cursor:pointer}
+.lay-collapsed>:not(.lay-bar){display:none!important}
+.lay-editing .lay-col{min-height:120px;outline:2px dashed var(--line);outline-offset:4px;border-radius:10px}
+.lay-editing .lay-bar{cursor:grab;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:6px 8px;margin-bottom:6px}
+.lay-editing .lay-handle{display:inline}
+.lay-dragging{opacity:.45}
+#siteColumns.searching .lay-box[data-box="siteinfo"]{display:none}
+@media(max-width:800px){
+  .lay-root{display:flex;flex-direction:column}
+  .lay-col{display:contents}
+  .lay-box{order:var(--mobile-order)}
+  .lay-hide-mobile{display:none}
+  #layoutEdit,#layoutReset{display:none}
+}

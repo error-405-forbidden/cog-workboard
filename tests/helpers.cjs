@@ -3,7 +3,7 @@ const vm=require('node:vm');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 function timers(){let id=0;const jobs=new Map();return {jobs,setTimeout(fn){jobs.set(++id,fn);return id;},clearTimeout(id){jobs.delete(id);},setInterval(fn){jobs.set(++id,fn);return id;},clearInterval(id){jobs.delete(id);},runAll(){const list=[...jobs.values()];jobs.clear();list.forEach(fn=>fn());}};}
-function load(extra={}){const clock=timers();const sandbox={console,Date,Intl,setTimeout:clock.setTimeout,clearTimeout:clock.clearTimeout,setInterval:clock.setInterval,clearInterval:clock.clearInterval,...extra};sandbox.window=sandbox;const context=vm.createContext(sandbox);for(const name of ['workboard-core','records-ui'])vm.runInContext(fs.readFileSync(path.join(root,'assets',name+'.js'),'utf8'),context,{filename:name});return {W:context.Workboard,context,clock};}
+function load(extra={}){const clock=timers();const sandbox={console,Date,Intl,setTimeout:clock.setTimeout,clearTimeout:clock.clearTimeout,setInterval:clock.setInterval,clearInterval:clock.clearInterval,...extra};sandbox.window=sandbox;const context=vm.createContext(sandbox);for(const name of ['workboard-core','records-ui','layout'])vm.runInContext(fs.readFileSync(path.join(root,'assets',name+'.js'),'utf8'),context,{filename:name});return {W:context.Workboard,context,clock};}
 function fakeRTDB(initial={}){
  let data=structuredClone(initial),seq=0,queue=Promise.resolve();const listeners=new Map(),writes=[];let fail=false;
  const parts=p=>p.split('/').filter(Boolean);

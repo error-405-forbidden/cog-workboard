@@ -141,3 +141,9 @@ test('サイト情報 moves with a rename and is cleared when the project is del
  assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ本番')).server??null,null);
  assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ本番')).removed,true);
 });
+test('W.parseLayout restores a saved order, keeps empty columns, drops unknown boxes and appends new ones to their default column',()=>{
+ const {W}=fixture();const defaults=[['list'],['siteinfo'],['compose','history']];
+ assert.equal(W.serializeLayout(W.parseLayout('list,history|siteinfo,compose|',defaults)),'list,history|siteinfo,compose|');
+ assert.equal(W.serializeLayout(W.parseLayout('history,ghost|list|',defaults)),'history|list,siteinfo|compose');
+ assert.equal(W.serializeLayout(W.parseLayout(undefined,defaults)),'list|siteinfo|compose,history');
+});

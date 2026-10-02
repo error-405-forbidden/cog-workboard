@@ -14,6 +14,7 @@ const COLUMNS=[{key:'todo',label:'未着手',short:'未着手',color:'var(--blue
 const QUICK_STATUS=[{key:'doing',label:'進行中'},{key:'done',label:'完了'},{key:'waiting',label:'保留'},{key:'cancelled',label:'中止'}];
 const TAGS=W.TAGS;
 const $=id=>document.getElementById(id);
+const layout=W.createLayout({editButton:$('layoutEdit'),resetButton:$('layoutReset'),statusEl:$('layoutStatus')});
 const esc=W.esc;
 const pad=n=>String(n).padStart(2,'0');
 // Preserve the original local-calendar date convention used by the shared data.
@@ -397,7 +398,7 @@ async function boot(){
  let gotSnapshot=false;
  const timer=taskTimer=setTimeout(()=>{if(generation===connectGeneration){showDbError('接続に時間がかかっています。接続が完了すると自動で表示します。改善しない場合は再接続してください。');if(!notesReady)notesState('error','接続に時間がかかっています。接続が完了するとサイトメモを表示します。');}},12000);
  try{
-  db=fsdb;connectNotes(db);
+  db=fsdb;connectNotes(db);layout.connect(fsdb);
   function onData(snap,live){if(generation!==connectGeneration||(!live&&gotSnapshot))return;if(live)gotSnapshot=true;clearTimeout(timer);const next=snap.docs.map(normalize);tasks=next;hasData=true;connectionState('ready');renderBoard();renderNoteProjects();
    // Live changes refresh the board and logs, never overwrite an open draft.
    if(editId){const current=tasks.find(t=>t.id===editId);if(!current){$('editNotice').hidden=false;$('editNotice').textContent='このタスクは別の操作で削除されました。入力内容を確認して閉じてください。';$('editSave').disabled=true;$('addLog').disabled=true;$('deleteTask').disabled=true;}else{renderLogs(current);if(!editBusy){const changed=Object.keys(editInitial||{}).some(k=>k!=='projectTags'?String(current[k]||'')!==String(editInitial[k]||''):JSON.stringify(current[k])!==JSON.stringify(editInitial[k]));if(changed){$('editNotice').hidden=false;$('editNotice').textContent='このタスクに更新がありました。入力中の内容は保持しています。最新の内容は一度閉じて開き直すと確認できます。';}}}}
@@ -452,7 +453,7 @@ const stopAuth=auth.onAuthStateChanged(function(user){
     $('appRoot').hidden=true;
   }
 });
-function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];siteProjects=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();$('siteInfo').replaceChildren();syncControls();
+function cleanupData(){layout.disconnect();++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];siteProjects=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();$('siteInfo').replaceChildren();syncControls();
  stopStaffData();staffRecords={staffProfiles:[],staffNotes:[]};staffStates={staffProfiles:'loading',staffNotes:'loading'};currentStaffId=null;if(staffUI)staffUI.dispose();$('staffDetail').replaceChildren();$('staffLog').replaceChildren();$('staffLogActions').replaceChildren();$('staffList').replaceChildren();
 }
 window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(siteInfoUnbind)siteInfoUnbind();if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();deleteArm.dispose();samplesArm.dispose();projectDeleteArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
