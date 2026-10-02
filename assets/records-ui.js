@@ -2,7 +2,7 @@
   'use strict';
   const E = W.esc;
   const definitions = {
-    memo:{collection:'siteMemos', fields:[{key:'date', type:'date', label:'記録日', row:true}, {key:'author', label:'記入者', fallback:'未設定', row:true}, {key:'title', label:'タイトル（任意）'}, {key:'text', type:'textarea', label:'本文', required:true}]},
+    memo:{collection:'siteMemos', fields:[{key:'date', type:'date', label:'記録日', row:true}, {key:'author', label:'記入者', fallback:'未設定', row:true}, {key:'title', label:'タイトル（任意）'}, {key:'text', type:'textarea', label:'本文', required:true}], stamp:'updatedAt'},
     staff:{collection:'staffProfiles', fields:[{key:'name', label:'お名前', required:true, className:'staff-name-input'}, {key:'profile', type:'textarea', label:'プロフィール（スキル・稼働時間・レートなど）', showLabel:true, labelClass:'profile-label', className:'profile-input'}, {key:'currentWork', type:'textarea', label:'依頼している内容', showLabel:true}], stamp:'updatedAt'},
     siteinfo:{collection:'siteProjects', fields:[{key:'url', label:'サイトURL', showLabel:true}, {key:'server', label:'サーバー', showLabel:true}, {key:'domain', label:'ドメイン管理', showLabel:true}, {key:'theme', type:'textarea', label:'テーマ・主なプラグイン', showLabel:true}, {key:'contact', type:'textarea', label:'担当・連絡先', showLabel:true}, {key:'note', type:'textarea', label:'備考', showLabel:true}], stamp:'infoUpdatedAt'},
     log:{collection:'staffNotes', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]},
