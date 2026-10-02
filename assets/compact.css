@@ -158,5 +158,7 @@ dialog .sheet-foot{padding:10px 16px}
   .lay-hide-mobile{display:none}
   #layoutEdit,#layoutReset{display:none}
 }
-/* サイト情報: item names as knocked-out (白抜き) labels so they don't blend into the values */
-.site-info .staff-section-label{display:inline-block;background:#34506e;color:#fff;font-size:12px;line-height:1.5;padding:2px 9px;border-radius:4px;margin-bottom:8px;letter-spacing:.04em}
+/* Item names and dates as knocked-out (白抜き) labels so they don't blend into the text:
+   サイト情報 / 外注さんプロフィールの項目名, memo dates, comment and log dates */
+.staff-section-label,.project-note-head time,.comment-head>span:not(.row-actions){display:inline-block;background:#34506e;color:#fff;font-size:12px;line-height:1.5;padding:2px 9px;border-radius:4px;margin-bottom:8px;letter-spacing:.04em}
+.project-note-head time,.comment-head>span:not(.row-actions){margin-bottom:0;font-weight:700;align-self:center}
