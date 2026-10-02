@@ -189,8 +189,8 @@ const normalizeNote=W.normalizeMemo;
 let siteMemoComments=[],commentsReady=false,commentsFailed=false,commentsUnsubscribe=null,commentsTimer=null;
 let siteProjects=[],siteProjectsReady=false,siteProjectsUnsubscribe=null,addProjectOpen=false,projectBusy=false;
 const projectDeleteArm=W.createDeleteArm(()=>syncDeleteProject());
-let notesUI=null,notesUnbind=null;
-function resetNotesUI(){if(notesUnbind)notesUnbind();if(notesUI)notesUI.dispose();notesUI=W.createRecordsUI({db:()=>fsdb,records:key=>key==='siteMemos'?siteNotes:siteMemoComments,loaded:key=>key==='siteMemos'?notesHasData:commentsReady,error:key=>key==='siteMemoComments'&&commentsFailed,canWrite:key=>!!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email)&&(key==='siteMemos'?notesReady:commentsReady),author:()=>me,render:force=>renderNoteHistory(force)});notesUnbind=notesUI.bind($('noteHistory'));}
+let notesUI=null,notesUnbind=null,siteInfoUnbind=null;
+function resetNotesUI(){if(notesUnbind)notesUnbind();if(siteInfoUnbind)siteInfoUnbind();if(notesUI)notesUI.dispose();notesUI=W.createRecordsUI({db:()=>fsdb,records:key=>key==='siteMemos'?siteNotes:key==='siteProjects'?siteProjects:siteMemoComments,loaded:key=>key==='siteMemos'?notesHasData:key==='siteProjects'?siteProjectsReady:commentsReady,error:key=>key==='siteMemoComments'&&commentsFailed,canWrite:key=>!!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email)&&(key==='siteMemos'?notesReady:key==='siteProjects'?siteProjectsReady:commentsReady),author:()=>me,render:force=>renderNoteHistory(force)});notesUnbind=notesUI.bind($('noteHistory'));siteInfoUnbind=notesUI.bind($('siteInfo'));}
 
 function projectActivity(){return W.projectActivity(siteNotes,siteMemoComments);}
 // Project list = built-in TAGS + task tags + memo tags + names added via 「＋」,
@@ -290,7 +290,10 @@ function renderNoteProjects(){
 function renderNoteHistory(force=false){
  const order=$('noteSort').value;
  const query=$('memoSearch').value;
- if(W.searchTokens(query).length){
+ const searching=W.searchTokens(query).length>0;
+ $('siteColumns').classList.toggle('searching',searching);
+ if(!searching&&notesUI)W.replaceContent($('siteInfo'),notesUI.siteInfo(noteProject),!force);
+ if(searching){
   const hits=W.sortMemos(W.searchMemos(siteNotes,query),order);
   $('noteHistoryHeading').textContent='検索結果（'+hits.length+'件）';$('notesProjectHeading').textContent='検索結果';
   if(!notesUI)return;
@@ -449,10 +452,10 @@ const stopAuth=auth.onAuthStateChanged(function(user){
     $('appRoot').hidden=true;
   }
 });
-function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];siteProjects=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();syncControls();
+function cleanupData(){++connectGeneration;clearTimeout(taskTimer);if(unsubscribe)unsubscribe();unsubscribe=null;stopNotes();ready=false;hasData=false;notesReady=false;notesHasData=false;tasks=[];siteNotes=[];siteMemoComments=[];siteProjects=[];resetDeleteArm();samplesArm.reset();if(notesUI)notesUI.dispose();editId=null;editInitial=null;editBase=null;for(const d of document.querySelectorAll('dialog[open]'))d.close();document.body.style.overflow='';$('board').replaceChildren();$('noteHistory').replaceChildren();$('siteInfo').replaceChildren();syncControls();
  stopStaffData();staffRecords={staffProfiles:[],staffNotes:[]};staffStates={staffProfiles:'loading',staffNotes:'loading'};currentStaffId=null;if(staffUI)staffUI.dispose();$('staffDetail').replaceChildren();$('staffLog').replaceChildren();$('staffLogActions').replaceChildren();$('staffList').replaceChildren();
 }
-window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();deleteArm.dispose();samplesArm.dispose();projectDeleteArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
+window.addEventListener('pagehide',()=>{cleanupData();stopAuth();if(notesUnbind)notesUnbind();if(siteInfoUnbind)siteInfoUnbind();if(staffUnbind)staffUnbind();if(staffLogUnbind)staffLogUnbind();deleteArm.dispose();samplesArm.dispose();projectDeleteArm.dispose();clearTimeout(toastTimer);clearInterval(dayTimer);});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 let lastDay=dateStr();const dayTimer=setInterval(()=>{renderDate();const today=dateStr();if(lastDay!==today){if(boardDate===lastDay){boardDate=today;$('boardDate').value=boardDate;}lastDay=today;renderBoard();}},60000);
 })();

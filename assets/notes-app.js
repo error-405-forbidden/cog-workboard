@@ -10,7 +10,7 @@
   let currentView='notes', currentProject='ジムセレ', currentStaffId=null, authReady=false, activeUid=null, generation=0, signingIn=false, adding=false, staffLogOrder='newest', currentProjectPicked=false;
   let noteBusy=false, noteComposeOpen=false, renameOpen=false, renameBusy=false, addProjectOpen=false, projectBusy=false;
   const projectDeleteArm=W.createDeleteArm(()=>syncDeleteProject());
-  let ui, unbindHistory, unbindStaff, unbindStaffLog;
+  let ui, unbindHistory, unbindSiteInfo, unbindStaff, unbindStaffLog;
   // "Unseen" project tracking (per-browser, shared with index.html via the same
   // localStorage key/origin): a project stays flagged until you actually open it,
   // not just for a fixed number of days. The one-time "mark everything that
@@ -25,9 +25,9 @@
   function markSeen(tag,activity){const latest=activity.get(tag);if(latest&&seenActivity[tag]!==latest){seenActivity[tag]=latest;saveSeen();}}
   function projectActivity(){return W.projectActivity(records.siteMemos,records.siteMemoComments);}
   function createUI(){
-    if(unbindHistory)unbindHistory();if(unbindStaff)unbindStaff();if(unbindStaffLog)unbindStaffLog();if(ui)ui.dispose();
+    if(unbindHistory)unbindHistory();if(unbindSiteInfo)unbindSiteInfo();if(unbindStaff)unbindStaff();if(unbindStaffLog)unbindStaffLog();if(ui)ui.dispose();
     ui=W.createRecordsUI({db:()=>db,records:key=>records[key],loaded:key=>states[key]==='ready',error:key=>states[key]==='error',canWrite:key=>authReady&&states[key]==='ready',render:force=>{if(currentView==='notes')renderHistory(force);else renderStaff(force);}});
-    unbindHistory=ui.bind($('history'));unbindStaff=ui.bind($('staffDetail'));unbindStaffLog=ui.bind($('staffLogPane'));
+    unbindHistory=ui.bind($('history'));unbindSiteInfo=ui.bind($('siteInfo'));unbindStaff=ui.bind($('staffDetail'));unbindStaffLog=ui.bind($('staffLogPane'));
   }
   function status(){
     const required=currentView==='notes'?['siteMemos','siteMemoComments']:['staffProfiles','staffNotes'];
@@ -168,7 +168,10 @@
   function renderHistory(force=false){
     const order=$('noteSort').value;
     const query=$('memoSearch').value;
-    if(W.searchTokens(query).length){
+    const searching=W.searchTokens(query).length>0;
+    $('siteColumns').classList.toggle('searching',searching);
+    if(!searching)W.replaceContent($('siteInfo'),ui.siteInfo(currentProject),!force);
+    if(searching){
       const hits=W.sortMemos(W.searchMemos(records.siteMemos,query),order);
       const content=hits.map(n=>'<p class="memo-hit-project">'+E(W.labelTag(n.projectTag))+'</p>'+ui.memo(n,order)).join('');
       $('projectHeading').textContent='検索結果：'+hits.length+'件';
@@ -246,6 +249,6 @@
     // Reuse an existing Google/anonymous session; never replace another tab's login.
     if(!signingIn){signingIn=true;auth.signInAnonymously().catch(err=>{$('status').hidden=false;$('status').className='status error';$('status').textContent='接続できませんでした。時間をおいて再度開いてください。';}).finally(()=>{signingIn=false;});}
   });
-  window.addEventListener('pagehide',()=>{authReady=false;stopAuth();stopData();unbindHistory();unbindStaff();unbindStaffLog();ui.dispose();projectDeleteArm.dispose();});
+  window.addEventListener('pagehide',()=>{authReady=false;stopAuth();stopData();unbindHistory();unbindSiteInfo();unbindStaff();unbindStaffLog();ui.dispose();projectDeleteArm.dispose();});
   window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();

@@ -81,8 +81,12 @@
     // The old name must not linger as an empty entry (a built-in TAGS name or one
     // added via 「＋」 would otherwise stay listed), and the new one must stay
     // listed even while it has no memos.
-    await W.setProjectRemoved(db, from, true);
-    await W.setProjectRemoved(db, to, false);
+    // The site's fixed info (W.SITE_INFO_FIELDS) moves with the name.
+    const old = (await db.doc('siteProjects/' + W.projectKey(from)).get()).data() || {};
+    const info = Object.fromEntries(W.SITE_INFO_FIELDS.filter(k => old[k]).map(k => [k, old[k]]));
+    if (old.infoUpdatedAt) info.infoUpdatedAt = old.infoUpdatedAt;
+    await W.setProjectRemoved(db, from, true, true);
+    await db.doc('siteProjects/' + W.projectKey(to)).update({...info, name:to, removed:false, updatedAt:new Date().toISOString()});
     return targets.length;
   };
 
@@ -91,13 +95,23 @@
   // is TAGS + names found in memos/tasks + added names, minus removed names, so a
   // deleted built-in or task-tag name does not come back on the next render.
   W.projectKey = name => encodeURIComponent(name).replace(/\./g, '%2E');
-  W.normalizeSiteProject = doc => { const raw = doc.data() || {}; return {id:doc.id, name:W.canonicalProject(raw.name), removed:raw.removed === true}; };
+  // The same document also holds the site's fixed info (URL, server, ...), edited
+  // from the サイト情報 pane next to the memos.
+  W.SITE_INFO_FIELDS = ['url', 'server', 'domain', 'theme', 'contact', 'note'];
+  W.normalizeSiteProject = doc => {
+    const raw = doc.data() || {};
+    return {...Object.fromEntries(W.SITE_INFO_FIELDS.map(k => [k, String(raw[k] || '')])), _raw:raw, id:doc.id, name:W.canonicalProject(raw.name), removed:raw.removed === true, infoUpdatedAt:String(raw.infoUpdatedAt || '')};
+  };
   W.visibleProjects = (names, siteProjects) => {
     const removed = new Set(siteProjects.filter(p => p.removed).map(p => p.name));
     const added = siteProjects.filter(p => !p.removed).map(p => p.name);
     return [...new Set(names.concat(added).map(W.canonicalProject))].filter(name => !removed.has(name));
   };
-  W.setProjectRemoved = (db, name, removed) => db.doc('siteProjects/' + W.projectKey(name)).update({name, removed, updatedAt:new Date().toISOString()});
+  W.setProjectRemoved = (db, name, removed, clearInfo = false) => {
+    const patch = {name, removed, updatedAt:new Date().toISOString()};
+    if (clearInfo) for (const k of W.SITE_INFO_FIELDS.concat('infoUpdatedAt')) patch[k] = null;
+    return db.doc('siteProjects/' + W.projectKey(name)).update(patch);
+  };
   // Deletes every memo of the project and every comment on those memos, then hides
   // the name. Hiding comes last so a failure midway leaves the project visible and
   // the delete can simply be retried.
@@ -105,7 +119,7 @@
     const targets = memos.filter(m => m.projectTag === name), ids = new Set(targets.map(m => m.id));
     for (const c of comments.filter(c => ids.has(c.memoId))) await db.doc('siteMemoComments/' + c.id).delete();
     for (const m of targets) await db.doc('siteMemos/' + m.id).delete();
-    await W.setProjectRemoved(db, name, true);
+    await W.setProjectRemoved(db, name, true, true);
     return targets.length;
   };
 

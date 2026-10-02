@@ -4,6 +4,7 @@
   const definitions = {
     memo:{collection:'siteMemos', fields:[{key:'date', type:'date', label:'記録日', row:true}, {key:'author', label:'記入者', fallback:'未設定', row:true}, {key:'title', label:'タイトル（任意）'}, {key:'text', type:'textarea', label:'本文', required:true}]},
     staff:{collection:'staffProfiles', fields:[{key:'name', label:'お名前', required:true, className:'staff-name-input'}, {key:'profile', type:'textarea', label:'プロフィール（スキル・稼働時間・レートなど）', showLabel:true, labelClass:'profile-label', className:'profile-input'}, {key:'currentWork', type:'textarea', label:'依頼している内容', showLabel:true}], stamp:'updatedAt'},
+    siteinfo:{collection:'siteProjects', fields:[{key:'url', label:'サイトURL', showLabel:true}, {key:'server', label:'サーバー', showLabel:true}, {key:'domain', label:'ドメイン管理', showLabel:true}, {key:'theme', type:'textarea', label:'テーマ・主なプラグイン', showLabel:true}, {key:'contact', type:'textarea', label:'担当・連絡先', showLabel:true}, {key:'note', type:'textarea', label:'備考', showLabel:true}], stamp:'infoUpdatedAt'},
     log:{collection:'staffNotes', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]},
     comment:{collection:'siteMemoComments', fields:[{key:'author', label:'お名前', fallback:'匿名'}, {key:'text', type:'textarea', label:'内容', required:true}]}
   };
@@ -18,7 +19,7 @@
   }
   // One editor/composer implementation for memos, profiles, staff logs and replies.
   W.createRecordsUI = options => {
-    const editors = new Map(), composers = new Map(), errors = new Map(), deleting = new Set(), expandedThreads = new Set(), expandedText = new Set();
+    const editors = new Map(), composers = new Map(), errors = new Map(), deleting = new Set(), creating = new Set(), expandedThreads = new Set(), expandedText = new Set();
     let disposed = false;
     const changed = (force = false) => { if (!disposed) options.render(force); };
     const canWrite = collection => !disposed && options.canWrite(collection);
@@ -184,6 +185,34 @@
       const body = editing ? form('memo',record.id) : titleHtml+'<p class="project-note-text">'+truncatedBody('memo',record.id,record.text)+'</p>'+recorded+errorMsg;
       return '<article class="project-note"><div class="project-note-head"><time datetime="'+E(record.date)+'">'+E(record.date||'日付未設定')+'</time><span>'+E(record.author)+'</span>'+pin+headActions+'</div>'+body+thread('comment',record.id,order)+'</article>';
     }
+    // サイト情報 pane for one project. Its document may not exist yet (built-in or
+    // memo-only names), so 編集 first creates it and then opens the editor.
+    function siteInfo(name) {
+      const id = W.projectKey(name), record = getRecord('siteProjects', id), definition = definitions.siteinfo;
+      if (editors.has(key('siteinfo', id))) return '<div class="staff-profile site-info">'+form('siteinfo', id)+'</div>';
+      const disabled = !canWrite('siteProjects') || creating.has(id);
+      const editBtn = '<button type="button" data-wb-action="siteinfo-edit" data-kind="siteinfo" data-id="'+E(id)+'" data-name="'+E(name)+'" data-focus-key="'+E('edit:siteinfo:'+id)+'"'+(disabled?' disabled':'')+'>編集</button>';
+      const value = k => {
+        const v = record ? record[k] : '';
+        if (!v) return '<span class="site-info-empty">（未入力）</span>';
+        return k === 'url' && /^https?:\/\/\S+$/.test(v) ? '<a href="'+E(v)+'" target="_blank" rel="noopener noreferrer">'+E(v)+'</a>' : E(v);
+      };
+      const updated = record && record.infoUpdatedAt ? W.createdDay(record.infoUpdatedAt) : '';
+      return '<div class="staff-profile site-info"><div class="staff-name-row"><div class="staff-name">サイト情報</div><span class="row-actions">'+editBtn+'</span></div>'
+        +(errors.has(id)?'<div class="form-msg" role="alert">'+E(errors.get(id))+'</div>':'')
+        +definition.fields.map(f => '<div class="staff-section"><div class="staff-section-label">'+E(f.label)+'</div><p class="project-note-text">'+value(f.key)+'</p></div>').join('')
+        +'<p class="staff-updated">パスワード類はここに書かず、COG Vaultで管理してください。'+(updated?'<br>最終更新：'+E(updated):'')+'</p></div>';
+    }
+    async function editSiteInfo(id, name) {
+      if (!canWrite('siteProjects') || creating.has(id)) return;
+      if (!getRecord('siteProjects', id)) {
+        creating.add(id); errors.delete(id); changed(true);
+        try { await options.db().doc('siteProjects/'+id).createIfAbsent({name, removed:false, updatedAt:new Date().toISOString()}); }
+        catch (err) { errors.set(id, W.message(err)); return; }
+        finally { creating.delete(id); changed(true); }
+      }
+      startEdit('siteinfo', id);
+    }
     function orphanMemos(project) {
       let html = '';
       for (const item of editors.values()) if (item.kind==='memo' && item.record.projectTag===project && !getRecord('siteMemos',item.id)) html += '<article class="project-note">'+form('memo',item.id)+'</article>';
@@ -201,6 +230,7 @@
         const b = event.target.closest('[data-wb-action]'); if (!b || !root.contains(b) || b.disabled) return;
         const {wbAction:action,kind,id} = b.dataset;
         if (action==='edit') startEdit(kind,id);
+        else if (action==='siteinfo-edit') void editSiteInfo(id,b.dataset.name);
         else if (action==='save') void saveEdit(kind,id);
         else if (action==='cancel') { const item=editors.get(key(kind,id)); if(item&&!item.busy){editors.delete(key(kind,id));arm.reset();changed(true);} }
         else if (action==='compose') openComposer(kind,id);
@@ -214,7 +244,7 @@
       root.addEventListener('input',onInput); root.addEventListener('change',onInput); root.addEventListener('click',onClick);
       return () => { root.removeEventListener('input',onInput);root.removeEventListener('change',onInput);root.removeEventListener('click',onClick); };
     }
-    return {bind,memo,thread,form,orphanMemos,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,removeMemo,removeComment,expandThread,expandText,collapseText,moreButton,composeTrigger,
+    return {bind,memo,thread,form,orphanMemos,siteInfo,editSiteInfo,startEdit,saveEdit,input,openComposer,submit,removeLog,removeStaff,removeMemo,removeComment,expandThread,expandText,collapseText,moreButton,composeTrigger,
       hasEditor:(kind,id)=>editors.has(key(kind,id)),
       editingRecord:(kind,id)=>editors.get(key(kind,id))?.record,
       resetConfirmation:()=>arm.reset(),

@@ -117,3 +117,27 @@ test('W.renameProject hides the old name and keeps the new one listed even witho
  assert.equal(rtdb.read('siteProjects/'+W.projectKey('新案件')).removed,true);
  assert.equal(rtdb.read('siteProjects/'+W.projectKey('新案件2')).removed,false);
 });
+test('サイト情報: 編集 creates the project document when missing, saves the fields, and links the URL',async()=>{
+ const {W,db,rtdb}=fixture();
+ const records=key=>Object.entries(rtdb.read(key)||{}).map(([id,value])=>key==='siteProjects'?W.normalizeSiteProject({id,data:()=>value}):({...value,id}));
+ const ui=W.createRecordsUI({db:()=>db,records,loaded:()=>true,canWrite:()=>true,render(){}});
+ const id=W.projectKey('ジムセレ');
+ assert.match(ui.siteInfo('ジムセレ'),/（未入力）/);
+ await ui.editSiteInfo(id,'ジムセレ');
+ assert.equal(rtdb.read('siteProjects/'+id).name,'ジムセレ');assert.equal(ui.hasEditor('siteinfo',id),true);
+ ui.input('siteinfo',id,'url','https://personalgym.co.jp/');ui.input('siteinfo',id,'server','Xserver');
+ await ui.saveEdit('siteinfo',id);
+ assert.equal(rtdb.read('siteProjects/'+id).server,'Xserver');assert.ok(rtdb.read('siteProjects/'+id).infoUpdatedAt);
+ assert.match(ui.siteInfo('ジムセレ'),/<a href="https:\/\/personalgym\.co\.jp\/"/);
+});
+test('サイト情報 moves with a rename and is cleared when the project is deleted',async()=>{
+ const {W,db,rtdb}=fixture();
+ rtdb.external('siteProjects/'+W.projectKey('ジムセレ'),{name:'ジムセレ',removed:false,server:'Xserver',infoUpdatedAt:'2026-10-01T00:00:00Z'});
+ const memos=Object.entries(rtdb.read('siteMemos')).map(([id,v])=>({...v,id}));
+ await W.renameProject(db,memos,'ジムセレ','ジムセレ本番');
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ本番')).server,'Xserver');
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ')).server??null,null);
+ await W.deleteProject(db,[],[],'ジムセレ本番');
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ本番')).server??null,null);
+ assert.equal(rtdb.read('siteProjects/'+W.projectKey('ジムセレ本番')).removed,true);
+});
