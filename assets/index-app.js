@@ -193,7 +193,7 @@ const projectDeleteArm=W.createDeleteArm(()=>syncDeleteProject());
 let notesUI=null,notesUnbind=null,siteInfoUnbind=null;
 function resetNotesUI(){if(notesUnbind)notesUnbind();if(siteInfoUnbind)siteInfoUnbind();if(notesUI)notesUI.dispose();notesUI=W.createRecordsUI({db:()=>fsdb,records:key=>key==='siteMemos'?siteNotes:key==='siteProjects'?siteProjects:siteMemoComments,loaded:key=>key==='siteMemos'?notesHasData:key==='siteProjects'?siteProjectsReady:commentsReady,error:key=>key==='siteMemoComments'&&commentsFailed,canWrite:key=>!!auth.currentUser&&!auth.currentUser.isAnonymous&&ALLOWED_EMAILS.includes(auth.currentUser.email)&&(key==='siteMemos'?notesReady:key==='siteProjects'?siteProjectsReady:commentsReady),author:()=>me,render:force=>renderNoteHistory(force)});notesUnbind=notesUI.bind($('noteHistory'));siteInfoUnbind=notesUI.bind($('siteInfo'));}
 
-function projectActivity(){return W.projectActivity(siteNotes,siteMemoComments,siteProjects);}
+function projectActivity(){return W.projectActivity(siteNotes,siteMemoComments);}
 // Project list = built-in TAGS + task tags + memo tags + names added via 「＋」,
 // minus deleted ones (see W.visibleProjects).
 function visibleNoteProjects(){return W.visibleProjects(TAGS.concat(tasks.flatMap(t=>t.projectTags||[]),siteNotes.map(n=>n.projectTag)),siteProjects);}

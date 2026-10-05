@@ -24,7 +24,7 @@
   function saveSeen(){try{localStorage.setItem('wb_seen_projects_v2',JSON.stringify(seenActivity));}catch(e){}}
   function markBootstrapped(){seenBootstrapped=true;try{localStorage.setItem('wb_seen_bootstrapped_v2','1');}catch(e){}}
   function markSeen(tag,activity){const latest=activity.get(tag);if(latest&&seenActivity[tag]!==latest){seenActivity[tag]=latest;saveSeen();}}
-  function projectActivity(){return W.projectActivity(records.siteMemos,records.siteMemoComments,records.siteProjects);}
+  function projectActivity(){return W.projectActivity(records.siteMemos,records.siteMemoComments);}
   function createUI(){
     if(unbindHistory)unbindHistory();if(unbindSiteInfo)unbindSiteInfo();if(unbindStaff)unbindStaff();if(unbindStaffLog)unbindStaffLog();if(ui)ui.dispose();
     ui=W.createRecordsUI({db:()=>db,records:key=>records[key],loaded:key=>states[key]==='ready',error:key=>states[key]==='error',canWrite:key=>authReady&&states[key]==='ready',render:force=>{if(currentView==='notes')renderHistory(force);else renderStaff(force);}});

@@ -43,16 +43,14 @@
     return tokens.every(t => hay.includes(t));
   };
   W.searchMemos = (list, query) => { const tokens = W.searchTokens(query); return list.filter(m => W.memoMatches(m, tokens)); };
-  // Latest activity per project tag, counting memos (added or edited), comments (a
-  // comment counts via its parent memo's projectTag — a reply is an update too) and
-  // edits to the project's サイト情報.
-  W.projectActivity = (notes, comments, siteProjects = []) => {
+  // Latest activity per project tag, counting both memos and comments (a comment
+  // counts via its parent memo's projectTag) — a reply is an update too.
+  W.projectActivity = (notes, comments) => {
     const tagOf = new Map(notes.map(n => [n.id, n.projectTag]));
     const latest = new Map();
     const bump = (tag, createdAt) => { if (!tag) return; const cur = latest.get(tag); if (!cur || createdAt > cur) latest.set(tag, createdAt); };
-    for (const n of notes) { bump(n.projectTag, n.createdAt); if (n.updatedAt) bump(n.projectTag, String(n.updatedAt)); }
+    for (const n of notes) bump(n.projectTag, n.createdAt);
     for (const c of comments) bump(tagOf.get(c.memoId), c.createdAt);
-    for (const p of siteProjects) if (!p.removed && p.infoUpdatedAt) bump(p.name, p.infoUpdatedAt);
     return latest;
   };
   // Projects with the most recent activity float to the top; a project with no

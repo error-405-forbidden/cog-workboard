@@ -147,12 +147,3 @@ test('W.parseLayout restores a saved order, keeps empty columns, drops unknown b
  assert.equal(W.serializeLayout(W.parseLayout('history,ghost|list|',defaults)),'history|list,siteinfo|compose');
  assert.equal(W.serializeLayout(W.parseLayout(undefined,defaults)),'list|siteinfo|compose,history');
 });
-test('editing a memo or a project\'s サイト情報 moves that project up the list',async()=>{
- const {W,ui,rtdb}=fixture();
- ui.startEdit('memo','a');ui.input('memo','a','text','edited');await ui.saveEdit('memo','a');
- const updated=rtdb.read('siteMemos/a').updatedAt;assert.ok(updated>'2026-09-08T01:00:00Z');
- const notes=[{id:'a',projectTag:'ジムセレ',createdAt:'2026-09-08T01:00:00Z',updatedAt:updated},{id:'b',projectTag:'買取サファリ',createdAt:'2026-09-09T00:00:00Z'}];
- assert.equal(W.sortProjects(['買取サファリ','ジムセレ','その他'],W.projectActivity(notes,[])).join(','),'ジムセレ,買取サファリ,その他');
- const info=[{name:'その他',removed:false,infoUpdatedAt:'2099-01-01T00:00:00Z'}];
- assert.equal(W.sortProjects(['買取サファリ','ジムセレ','その他'],W.projectActivity(notes,[],info))[0],'その他');
-});
