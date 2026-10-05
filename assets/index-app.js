@@ -211,8 +211,6 @@ function saveNoteDraft(){noteDrafts.set(noteProject,{title:$('noteTitle').value,
 function clearMemoSearch(){$('memoSearch').value='';$('memoSearchClear').hidden=true;}
 function closeRename(){renameOpen=false;$('renameProjectForm').hidden=true;$('renameProjectError').hidden=true;}
 function chooseNoteProject(project){if(noteBusy)return;saveNoteDraft();clearMemoSearch();closeRename();projectDeleteArm.reset();errorAt('projectError','');noteProject=canonicalProject(project);const draft=noteDrafts.get(noteProject);$('noteTitle').value=draft?draft.title:'';$('noteText').value=draft?draft.text:'';$('noteDate').value=draft?draft.date:dateStr();errorAt('noteError','');renderNotes();}
-let projectSort=W.projectSortPref.get();$('projectSort').value=projectSort;
-$('projectSort').addEventListener('change',e=>{projectSort=e.target.value;W.projectSortPref.set(projectSort);renderNoteProjects();});
 $('notesProjectSelect').addEventListener('change',e=>chooseNoteProject(e.target.value));$('noteTitle').addEventListener('input',saveNoteDraft);$('noteText').addEventListener('input',saveNoteDraft);$('noteDate').addEventListener('input',saveNoteDraft);$('noteSort').addEventListener('change',renderNoteHistory);
 $('memoSearch').addEventListener('input',()=>{$('memoSearchClear').hidden=!$('memoSearch').value.trim();renderNoteHistory();});
 $('memoSearchClear').addEventListener('click',()=>{clearMemoSearch();renderNoteHistory();});
@@ -284,7 +282,7 @@ function renderNoteProjects(){
  // one is actually most relevant (top of the recency sort) instead of always
  // ジムセレ — otherwise the sort order and the default selection disagree.
  if(!noteProjectPicked&&notesHasData&&projects.length){noteProject=projects[0];noteProjectPicked=true;}
- $('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();(projectSort==='name'?W.sortByName(projects):projects).forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;
+ $('notesProjects').replaceChildren();$('notesProjectSelect').replaceChildren();projects.forEach(tag=>{const count=siteNotes.filter(n=>n.projectTag===tag).length;
  // Stays flagged until you open the project (markSeen in renderNoteHistory), not
  // for a fixed number of days — a triangle at the row's left edge since the list
  // is too narrow for badge text without wrapping.

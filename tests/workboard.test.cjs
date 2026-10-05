@@ -147,9 +147,3 @@ test('W.parseLayout restores a saved order, keeps empty columns, drops unknown b
  assert.equal(W.serializeLayout(W.parseLayout('history,ghost|list|',defaults)),'history|list,siteinfo|compose');
  assert.equal(W.serializeLayout(W.parseLayout(undefined,defaults)),'list|siteinfo|compose,history');
 });
-test('名前順 sorts project names (ABC, then kana) without touching the おすすめ order',()=>{
- const {W}=fixture();const rec=['ジムセレ','あなたのカードローン','SNS','アマトレード','共通/インフラ'];
- const byName=W.sortByName(rec);
- assert.equal(byName.indexOf('SNS'),0);assert.ok(byName.indexOf('あなたのカードローン')<byName.indexOf('アマトレード'));
- assert.equal(rec.join(','),'ジムセレ,あなたのカードローン,SNS,アマトレード,共通/インフラ');
-});

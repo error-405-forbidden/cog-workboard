@@ -162,6 +162,3 @@ dialog .sheet-foot{padding:10px 16px}
    サイト情報 / 外注さんプロフィールの項目名, memo dates, comment and log dates */
 .staff-section-label,.project-note-head time,.comment-head>span:not(.row-actions){display:inline-block;background:#34506e;color:#fff;font-size:12px;line-height:1.5;padding:2px 9px;border-radius:4px;margin-bottom:8px;letter-spacing:.04em}
 .project-note-head time,.comment-head>span:not(.row-actions){margin-bottom:0;font-weight:700;align-self:center}
-/* おすすめ順 / 名前順 switch above the project list */
-.project-sort{padding:0 10px 8px}
-.project-sort select{width:100%;font-size:13px;padding:5px 8px;min-height:0;background:var(--surface);color:inherit;border:1px solid var(--line);border-radius:6px}

@@ -66,15 +66,6 @@
       return 0;
     });
   };
-  // 名前順 view of the project list (display only — the おすすめ order itself is
-  // unchanged). Japanese collation: ABC, then kana; kanji are not sorted by reading.
-  const nameCollator = new Intl.Collator('ja', {numeric:true, sensitivity:'base'});
-  W.sortByName = tags => tags.slice().sort((a, b) => nameCollator.compare(W.labelTag(a), W.labelTag(b)));
-  // Per-browser choice between the two orders, shared by both pages.
-  W.projectSortPref = {
-    get:() => { try { return localStorage.getItem('wb_project_sort') === 'name' ? 'name' : 'recommended'; } catch (e) { return 'recommended'; } },
-    set:value => { try { localStorage.setItem('wb_project_sort', value); } catch (e) {} }
-  };
   W.sortThread = (list, order = 'newest') => {
     const sorted = list.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return order === 'oldest' ? sorted : sorted.reverse();
