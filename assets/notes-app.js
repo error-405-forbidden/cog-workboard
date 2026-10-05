@@ -154,7 +154,7 @@
     // ジムセレ — otherwise the sort order and the default selection disagree.
     if(!currentProjectPicked&&states.siteMemos==='ready'&&projects.length){currentProject=projects[0];currentProjectPicked=true;}
     $('projectList').replaceChildren();$('projectSelect').replaceChildren();
-    projects.forEach(tag=>{
+    (projectSort==='name'?W.sortByName(projects):projects).forEach(tag=>{
       const count=records.siteMemos.filter(n=>n.projectTag===tag).length;
       // Stays flagged until you open the project (markSeen in renderHistory), not
       // for a fixed number of days — a triangle at the row's left edge since the
@@ -165,6 +165,8 @@
     });$('projectSelect').value=currentProject;
   }
   $('projectSelect').addEventListener('change',e=>chooseProject(e.target.value));
+  let projectSort=W.projectSortPref.get();$('projectSort').value=projectSort;
+  $('projectSort').addEventListener('change',e=>{projectSort=e.target.value;W.projectSortPref.set(projectSort);renderProjects();});
   $('noteSort').addEventListener('change',()=>renderHistory());
   function renderHistory(force=false){
     const order=$('noteSort').value;
