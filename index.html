@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- ?v= is a manual cache-buster — GitHub Pages caches these for 10 min (Cache-Control: max-age=600),
      so bump this value whenever any assets/*.css or assets/*.js file changes. -->
-<link rel="stylesheet" href="assets/index.css?v=20261124c">
+<link rel="stylesheet" href="assets/index.css?v=20261124d">
 <link rel="stylesheet" href="assets/records.css?v=20261005b">
 <link rel="stylesheet" href="assets/dashboard.css?v=20261005b">
 <link rel="stylesheet" href="assets/compact.css?v=20261005b">
@@ -118,7 +118,7 @@
 </section>
 <section id="staffView" aria-labelledby="staffHeading" hidden>
  <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div></div>
- <section class="staff-deadlines" aria-labelledby="staffDeadlinesHeading"><h3 id="staffDeadlinesHeading">依頼中の納期 <small>タスクボードで「外注さん」を入れたタスク（未完了のみ）</small></h3><div id="staffDeadlines"></div></section>
+ <section class="staff-deadlines" aria-labelledby="staffGanttHeading"><div class="gantt-head"><h3 id="staffGanttHeading">外注さんの予定 <small>バー＝登録日〜納期　◆＝連絡日　クリックで詳細</small></h3><div class="gantt-nav"><button type="button" class="step" id="ganttPrev" aria-label="前の期間">‹</button><button type="button" class="link-btn" id="ganttToday">今日</button><button type="button" class="step" id="ganttNext" aria-label="次の期間">›</button></div></div><div class="gantt-scroll" id="staffGantt"></div></section>
  <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
  <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
  <div class="lay-root" data-layout="staff" data-widths="1fr|1.2fr|220px">
@@ -165,6 +165,6 @@
 <script src="assets/workboard-core.js?v=20261005b"></script>
 <script src="assets/records-ui.js?v=20261005b"></script>
 <script src="assets/layout.js?v=20261005b"></script>
-<script src="assets/index-app.js?v=20261124c"></script>
+<script src="assets/index-app.js?v=20261124d"></script>
 </body>
 </html>

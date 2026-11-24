@@ -72,12 +72,30 @@ function setOutLabels(prefix,on){$(prefix+'StartLbl').textContent=on?'連絡日'
 function fillOutsourcers(){const names=[...new Set(staffRecords.staffProfiles.map(p=>p.name).concat(tasks.map(t=>t.outsourcer)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));$('outsourcers').innerHTML=names.map(n=>'<option value="'+esc(n)+'"></option>').join('');}
 $('qaOutsourcer').addEventListener('input',()=>setOutLabels('qa',!!$('qaOutsourcer').value.trim()));
 $('editOutsourcer').addEventListener('input',()=>setOutLabels('edit',!!$('editOutsourcer').value.trim()));
-// 外注さん画面の上部：未完了の外注タスクを納期が近い順に並べる（クリックで詳細を開く）
-function renderStaffDeadlines(){const box=$('staffDeadlines');if(!box)return;const today=dateStr();const list=tasks.filter(t=>unfinished(t)&&t.outsourcer).sort((a,b)=>String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))||String(a.startDate||'9999').localeCompare(String(b.startDate||'9999')));
- if(!list.length){box.innerHTML='<p class="staff-deadlines-empty">依頼中の外注タスクはありません</p>';return;}
- box.replaceChildren();list.forEach(t=>{const over=t.dueDate&&t.dueDate<today,isToday=t.dueDate===today,contact=t.startDate&&t.startDate<=today;const b=document.createElement('button');b.type='button';b.className='staff-deadline'+(over?' overdue':isToday?' today':'');
-  b.innerHTML='<span class="sd-due">'+(t.dueDate?(over?'納期超過 ':isToday?'今日納期 ':'納期 ')+esc(toMD(t.dueDate)):'納期未定')+'</span><span class="sd-name">'+esc(t.outsourcer)+'</span><span class="sd-title">'+esc(t.title)+'</span>'+(t.startDate?'<span class="sd-contact'+(contact?' now':'')+'">'+(contact?'要連絡 ':'連絡 ')+esc(toMD(t.startDate))+'</span>':'');
-  b.addEventListener('click',()=>openEditor(t.id));box.append(b);});}
+// 外注さん画面の上部：外注タスクの横向きカレンダー（ガントチャート）。
+// 1行＝外注さん1人。バー＝タスク登録日〜納期、◆＝連絡日。依頼が重なる人は段を分ける。
+const GANTT_DAYS=63,GANTT_W=24;let ganttFrom=null;
+const addDays=(d,n)=>{const t=new Date(isoDay(d)+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10);};
+function renderStaffGantt(){const box=$('staffGantt');if(!box)return;const today=dateStr(),from=ganttFrom||addDays(today,-7),to=addDays(from,GANTT_DAYS-1);
+ const items=tasks.filter(t=>t.outsourcer&&t.status!=='cancelled').map(t=>{const done=!unfinished(t),c=isoDay(t.createdAt)||today;const s0=t.startDate&&t.startDate<c?t.startDate:c;let e=t.dueDate||(done?(isoDay(t.doneAt)||c):(t.startDate&&t.startDate>today?t.startDate:today));if(e<s0)e=s0;return {t,done,s:s0,e};}).filter(x=>x.e>=from&&x.s<=to);
+ if(!items.length){box.innerHTML='<p class="staff-deadlines-empty">この期間に外注さんのタスクはありません（タスクボードで「外注さん」欄を入れると表示されます）</p>';return;}
+ let head2='',cur='',span=0;const months=[];
+ for(let i=0;i<GANTT_DAYS;i++){const d=addDays(from,i),m=Number(d.slice(5,7))+'月',wd=new Date(d+'T00:00:00Z').getUTCDay();if(m!==cur){if(cur)months.push([cur,span]);cur=m;span=0;}span++;head2+='<span class="g-day'+(wd===0||wd===6?' we':'')+(d===today?' now':'')+'">'+Number(d.slice(8,10))+'</span>';}
+ months.push([cur,span]);const head1=months.map(([m,n])=>'<span class="g-month" style="width:'+(n*GANTT_W)+'px">'+m+'</span>').join('');
+ const idx=d=>dayDiff(from,d),todayIdx=idx(today);
+ const people=[...new Set(items.map(x=>x.t.outsourcer))].sort((a,b)=>a.localeCompare(b,'ja'));
+ let rows='';people.forEach(name=>{const mine=items.filter(x=>x.t.outsourcer===name).sort((a,b)=>a.s.localeCompare(b.s));const lanes=[];
+  mine.forEach(x=>{let l=lanes.findIndex(end=>end<x.s);if(l<0){l=lanes.length;lanes.push('');}lanes[l]=x.e;x.lane=l;});
+  let bars='';mine.forEach(x=>{const t=x.t,si=Math.max(0,idx(x.s)),ei=Math.min(GANTT_DAYS-1,idx(x.e)),over=!x.done&&t.dueDate&&t.dueDate<today;
+   const tip=t.title+'\n登録 '+toMD(t.createdAt)+(t.startDate?' / 連絡 '+toMD(t.startDate):'')+' / 納期 '+(t.dueDate?toMD(t.dueDate):'未定')+(x.done?'（完了）':over?'（納期超過）':'');
+   bars+='<button type="button" class="g-bar'+(x.done?' done':over?' overdue':'')+(t.dueDate?'':' nodue')+'" data-task="'+esc(t.id)+'" title="'+esc(tip)+'" style="left:'+(si*GANTT_W)+'px;width:'+((ei-si+1)*GANTT_W-2)+'px;top:'+(x.lane*28+4)+'px">'+esc(t.title)+'</button>';
+   if(t.startDate&&!x.done&&t.startDate>=from&&t.startDate<=to)bars+='<span class="g-contact'+(t.startDate<=today?' now':'')+'" style="left:'+(idx(t.startDate)*GANTT_W+GANTT_W/2)+'px;top:'+(x.lane*28+15)+'px" title="連絡日 '+esc(toMD(t.startDate))+'">◆</span>';});
+  rows+='<div class="g-row"><div class="g-name">'+esc(name)+'</div><div class="g-track" style="height:'+(lanes.length*28+8)+'px">'+(todayIdx>=0&&todayIdx<GANTT_DAYS?'<span class="g-today" style="left:'+(todayIdx*GANTT_W+GANTT_W/2)+'px"></span>':'')+bars+'</div></div>';});
+ box.innerHTML='<div class="gantt" style="--gw:'+GANTT_W+'px;width:'+(110+GANTT_DAYS*GANTT_W)+'px"><div class="g-row g-headrow"><div class="g-name"></div><div><div class="g-months">'+head1+'</div><div class="g-days">'+head2+'</div></div></div>'+rows+'</div>';}
+$('staffGantt').addEventListener('click',e=>{const b=e.target.closest('[data-task]');if(b)openEditor(b.dataset.task);});
+$('ganttPrev').addEventListener('click',()=>{ganttFrom=addDays(ganttFrom||addDays(dateStr(),-7),-28);renderStaffGantt();});
+$('ganttNext').addEventListener('click',()=>{ganttFrom=addDays(ganttFrom||addDays(dateStr(),-7),28);renderStaffGantt();});
+$('ganttToday').addEventListener('click',()=>{ganttFrom=null;renderStaffGantt();});
 function sortTasks(a,b){const terminal=!unfinished(a)&&!unfinished(b);if(terminal)return String(b.doneAt||b.updatedAt||'').localeCompare(String(a.doneAt||a.updatedAt||''));return String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))||String(a.createdAt||'').localeCompare(String(b.createdAt||''));}
 // Day view: an unfinished task with a due date stays off the board until that day
 // arrives (many tasks are only actionable on a specific date), then carries forward
@@ -106,7 +124,7 @@ function renderBoard(){
   if(!list.length){const empty=document.createElement('div');empty.className='empty';empty.innerHTML='<span class="empty-mark" aria-hidden="true">—</span>'+(col.key==='todo'?'追加したタスクが並びます':col.key==='done'?'完了したタスクが並びます':'タスクはありません');body.append(empty);}else list.forEach(t=>body.append(renderCard(t)));
   $('board').append(el);
  });
- const names=[...new Set(tasks.map(t=>t.assignee).filter(Boolean).concat(me?[me]:[]))];$('assignees').innerHTML=names.map(n=>'<option value="'+esc(n)+'"></option>').join('');fillOutsourcers();renderStaffDeadlines();
+ const names=[...new Set(tasks.map(t=>t.assignee).filter(Boolean).concat(me?[me]:[]))];$('assignees').innerHTML=names.map(n=>'<option value="'+esc(n)+'"></option>').join('');fillOutsourcers();renderStaffGantt();
 }
 function renderCard(t){
  const active=unfinished(t),carry=active?age(t):0,overdue=active&&t.dueDate&&t.dueDate<dateStr(),dueToday=active&&t.dueDate===dateStr();
@@ -374,13 +392,13 @@ function renderStaff(force=false){
  renderStaffList();
  if(!p){W.replaceContent($('staffDetail'),'<div class="note-empty">'+(staffStates.staffProfiles==='ready'?'<strong>まだ外注さんが登録されていません</strong><p>「＋」から追加してください。</p>':'読み込み中です…')+'</div>',!force);W.replaceContent($('staffLog'),'',!force);W.replaceContent($('staffLogActions'),'',!force);return;}
  const present=staffRecords.staffProfiles.some(r=>r.id===p.id),next=staffDateState.get(p.id)||{},disabled=!canWriteStaff()||staffStates.staffProfiles!=='ready'||next.busy||!present;
- const nextRow='<div class="staff-next"><label for="staffNextDate">次回依頼日</label><input type="date" id="staffNextDate" value="'+esc(next.busy?next.value:p.nextRequestDate||'')+'" data-id="'+esc(p.id)+'"'+(disabled?' disabled':'')+'><button type="button" class="next-clear" data-next-clear="'+esc(p.id)+'"'+(disabled?' disabled':'')+'>クリア</button><span class="saved-flag"'+(next.saved?'':' hidden')+'>保存しました</span>'+(next.error?'<span class="form-msg" role="alert">'+esc(next.error)+'</span>':'')+'</div>';
+
  const updated=p.updatedAt?W.createdDay(p.updatedAt):'';
  // Edit/delete sit next to the name itself instead of a separate row far below the content.
  const headActions='<span class="row-actions"><button type="button" data-wb-action="edit" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()?' disabled':'')+'>編集</button><button type="button" data-wb-action="delete" data-kind="staff" data-id="'+esc(p.id)+'"'+(!present||!canWriteStaff()||staffUI.isDeleting(p.id)?' disabled':'')+'>'+(staffUI.isArmed(p.id)?'本当に削除？もう一度クリック':'削除')+'</button></span>';
  const errorMsg=staffUI.errorFor(p.id)?'<div class="form-msg" role="alert">'+esc(staffUI.errorFor(p.id))+'</div>':'';
  const body=staffUI.hasEditor('staff',p.id)?'<div class="staff-profile">'+staffUI.form('staff',p.id)+'</div>':'<div class="staff-profile"><div class="staff-name-row"><div class="staff-name">'+esc(p.name||'（名前未設定）')+'</div>'+headActions+'</div>'+errorMsg+'<div class="staff-section"><div class="staff-section-label">プロフィール</div><p class="project-note-text">'+esc(p.profile||'（未入力）')+'</p></div><div class="staff-section"><div class="staff-section-label">依頼している内容</div><p class="project-note-text">'+esc(p.currentWork||'（未入力）')+'</p></div>'+(updated?'<p class="staff-updated">最終更新：'+esc(updated)+'</p>':'')+'</div>';
- W.replaceContent($('staffDetail'),nextRow+body,!force);
+ W.replaceContent($('staffDetail'),body,!force);
  W.replaceContent($('staffLogActions'),staffUI.composeTrigger('staffnote',p.id),!force);
  W.replaceContent($('staffLog'),staffUI.thread('staffnote',p.id,staffLogOrder),!force);
 }
