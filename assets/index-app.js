@@ -23,7 +23,7 @@ const isoDay=W.isoDay;
 const toMD=v=>{const s=isoDay(v);return s?Number(s.slice(5,7))+'/'+Number(s.slice(8,10)):'';};
 const dayDiff=(a,b)=>{a=isoDay(a);b=isoDay(b);return a&&b?Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000):0;};
 const unfinished=t=>t.status!=='done'&&t.status!=='cancelled';
-const age=t=>t.createdAt?Math.max(1,dayDiff(t.createdAt,dateStr())+1):1;
+const age=t=>(t.startDate||t.createdAt)?Math.max(1,dayDiff(t.startDate||t.createdAt,dateStr())+1):1;
 const oneLine=s=>String(s||'').replace(/[\r\n\u2028\u2029]+/g,' ').trim();
 let db=null,tasks=[],ready=false,hasData=false,scope='mine',mobileStatus='todo',me='',qaTags=[],qaType='single',boardDate=dateStr();
 let editBase=null,editId=null,editInitial=null,editTags=[],editBusy=false,qaBusy=false,connectGeneration=0,unsubscribe=null,taskTimer=null,toastTimer,returnFocus;
@@ -65,7 +65,7 @@ document.querySelectorAll('[data-due]').forEach(b=>b.addEventListener('click',()
 $('qaTypeRow').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{qaType=b.dataset.type;$('qaTypeRow').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 function setFormDisabled(form,disabled){form.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=disabled);}
 $('qaTitle').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.isComposing)e.preventDefault();});
-$('qaForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready||qaBusy)return;if(!me){$('meInput').focus();return;}const title=$('qaTitle').value.trim();if(!title)return;const assignee=$('qaAssignee').value.trim()||me;const data={title,content:$('qaContent').value.trim()||title,status:'todo',waitingFor:'',cancelReason:'',assignee,projectTags:qaTags.slice(),taskType:qaType,dueDate:$('qaDue').value||null,createdAt:boardDate,updatedAt:boardDate,doneAt:null,logs:[],isSample:false};qaBusy=true;setFormDisabled($('qaForm'),true);$('qaSubmit').querySelector('span').textContent='保存中';errorAt('qaError','');try{await db.collection('tasks').add(data);$('qaForm').reset();qaTags=[];qaType='single';renderTags('qaTagRow',qaTags);$('qaTypeRow').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type==='single')));$('qaDetail').hidden=true;$('qaMoreToggle').setAttribute('aria-expanded','false');$('qaMoreToggle').textContent='＋ 期限・案件・担当者などを指定';mobileStatus='todo';renderBoard();const dateNote=boardDate!==dateStr()?'（'+toMD(boardDate)+'）':'';toast((assignee===me?'タスクを追加しました':assignee+'さんのタスクとして追加しました（全員表示で確認）')+dateNote);}catch(err){errorAt('qaError','登録できませんでした。入力内容は残っています。接続を確認して、もう一度追加してください。');}finally{qaBusy=false;setFormDisabled($('qaForm'),false);$('qaSubmit').querySelector('span').textContent='追加';syncControls();$('qaTitle').focus();}});
+$('qaForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready||qaBusy)return;if(!me){$('meInput').focus();return;}const title=$('qaTitle').value.trim();if(!title)return;if($('qaStart').value&&$('qaDue').value&&$('qaStart').value>$('qaDue').value){errorAt('qaError','開始日が期限より後になっています。日付を確認してください。');return;}const assignee=$('qaAssignee').value.trim()||me;const data={title,content:$('qaContent').value.trim()||title,status:'todo',waitingFor:'',cancelReason:'',assignee,projectTags:qaTags.slice(),taskType:qaType,startDate:$('qaStart').value||null,dueDate:$('qaDue').value||null,createdAt:boardDate,updatedAt:boardDate,doneAt:null,logs:[],isSample:false};qaBusy=true;setFormDisabled($('qaForm'),true);$('qaSubmit').querySelector('span').textContent='保存中';errorAt('qaError','');try{await db.collection('tasks').add(data);$('qaForm').reset();qaTags=[];qaType='single';renderTags('qaTagRow',qaTags);$('qaTypeRow').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type==='single')));$('qaDetail').hidden=true;$('qaMoreToggle').setAttribute('aria-expanded','false');$('qaMoreToggle').textContent='＋ 期限・案件・担当者などを指定';mobileStatus='todo';renderBoard();const dateNote=boardDate!==dateStr()?'（'+toMD(boardDate)+'）':'';toast((assignee===me?'タスクを追加しました':assignee+'さんのタスクとして追加しました（全員表示で確認）')+dateNote);}catch(err){errorAt('qaError','登録できませんでした。入力内容は残っています。接続を確認して、もう一度追加してください。');}finally{qaBusy=false;setFormDisabled($('qaForm'),false);$('qaSubmit').querySelector('span').textContent='追加';syncControls();$('qaTitle').focus();}});
 function sortTasks(a,b){const terminal=!unfinished(a)&&!unfinished(b);if(terminal)return String(b.doneAt||b.updatedAt||'').localeCompare(String(a.doneAt||a.updatedAt||''));return String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))||String(a.createdAt||'').localeCompare(String(b.createdAt||''));}
 // Day view: an unfinished task with a due date stays off the board until that day
 // arrives (many tasks are only actionable on a specific date), then carries forward
@@ -73,7 +73,7 @@ function sortTasks(a,b){const terminal=!unfinished(a)&&!unfinished(b);if(termina
 // with no due date carries forward every day from its creation date instead. A
 // done/cancelled task belongs to the single day it was finished, like a daily log entry.
 function inDateView(t,d){
- if(unfinished(t))return t.dueDate?d>=t.dueDate:(!t.createdAt||t.createdAt<=d);
+ if(unfinished(t)){if(t.startDate)return d>=t.startDate;return t.dueDate?d>=t.dueDate:(!t.createdAt||t.createdAt<=d);}
  const finishedDay=t.status==='done'?isoDay(t.doneAt):isoDay(t.updatedAt);
  return !!finishedDay&&finishedDay===d;
 }
@@ -103,7 +103,7 @@ function renderCard(t){
  let html='';const tags=(t.projectTags||[]).map(tag=>'<span class="tag">'+esc(labelTag(tag))+'</span>').join('');if(t.isSample||t.taskType==='routine'||tags)html+='<span class="card-tags">'+(t.isSample?'<span class="tag">サンプル</span>':'')+(t.taskType==='routine'?'<span class="tag routine">ルーティン</span>':'')+tags+'</span>';
  html+='<span class="card-title">'+esc(t.title)+'</span>';
  if(t.content&&t.content!==t.title)html+='<span class="card-content">'+esc(t.content)+'</span>';
- html+='<span class="card-dates">'+(t.dueDate?'<span class="due'+(overdue?' overdue':dueToday?' today':'')+'">'+(overdue?'期限超過 ':dueToday?'今日まで ':'期限 ')+esc(toMD(t.dueDate))+'</span>':'<span class="due nodate">無期限</span>')+(carry>=2?'<span class="age">'+carry+'日目</span>':'')+'</span>';
+ html+='<span class="card-dates">'+(t.startDate?'<span class="due'+(overdue?' overdue':dueToday?' today':'')+'">'+(overdue?'期限超過 ':dueToday?'今日まで ':'')+esc(toMD(t.startDate))+'〜'+(t.dueDate?esc(toMD(t.dueDate)):'')+'</span>':t.dueDate?'<span class="due'+(overdue?' overdue':dueToday?' today':'')+'">'+(overdue?'期限超過 ':dueToday?'今日まで ':'期限 ')+esc(toMD(t.dueDate))+'</span>':'<span class="due nodate">無期限</span>')+(carry>=2?'<span class="age">'+carry+'日目</span>':'')+'</span>';
  if(t.status==='waiting')html+='<span class="waiting-for">待ち先：'+esc(t.waitingFor||'未入力')+'</span>';
  if(t.status==='cancelled'&&t.cancelReason)html+='<span class="waiting-for cancel-note">中止理由：'+esc(t.cancelReason)+'</span>';
  main.innerHTML=html;main.addEventListener('click',()=>openEditor(t.id));card.append(main);
@@ -134,10 +134,11 @@ function openEditor(id){const t=tasks.find(t=>t.id===id);if(!t)return;editId=id;
 function requestCloseEditor(){if(editBusy){toast('保存が終わるまでお待ちください');return;}const dirty=isDirty()||$('editNewLog').value.trim();resetDeleteArm();editId=null;editInitial=null;renderBoard();closeDialog($('editDialog'));if(dirty)toast('保存していない変更を破棄しました');}
 $('editClose').addEventListener('click',requestCloseEditor);$('editCancelBtn').addEventListener('click',requestCloseEditor);$('editDialog').addEventListener('cancel',e=>{e.preventDefault();requestCloseEditor();});
 function setEditBusy(busy){editBusy=busy;setFormDisabled($('editForm'),busy);$('editClose').disabled=busy;syncControls();}
-$('editForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready||editBusy)return;const t=tasks.find(x=>x.id===editId);if(!t){errorAt('editError','このタスクは削除されています。');return;}const values=editorValues(),patch={};if(!values.title.trim()){$('editTitle').focus();return;}
+$('editForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready||editBusy)return;const t=tasks.find(x=>x.id===editId);if(!t){errorAt('editError','このタスクは削除されています。');return;}const values=editorValues(),patch={};if(!values.title.trim()){$('editTitle').focus();return;}if(values.startDate&&values.dueDate&&values.startDate>values.dueDate){errorAt('editError','開始日が期限より後になっています。日付を確認してください。');return;}
  // Send only edited fields so an unrelated live update is not overwritten.
  Object.keys(values).forEach(k=>{if(JSON.stringify(values[k])!==JSON.stringify(editInitial[k]))patch[k]=typeof values[k]==='string'?values[k].trim():values[k];});
  if('dueDate' in patch)patch.dueDate=patch.dueDate||null;
+ if('startDate' in patch)patch.startDate=patch.startDate||null;
  if('assignee' in patch)patch.assignee=patch.assignee||me||'未設定';
  if('content' in patch)patch.content=patch.content||values.title.trim();
  if('title' in patch&&!('content' in patch)&&t.content===t.title)patch.content=patch.title;
@@ -158,7 +159,7 @@ $('deleteTask').addEventListener('click',async()=>{
  if(!deleteArm.press(editId))return;
  resetDeleteArm();setEditBusy(true);try{await db.doc('tasks/'+editId).delete();editId=null;editInitial=null;renderBoard();closeDialog($('editDialog'));toast('タスクを削除しました');}catch(err){errorAt('editError','削除できませんでした。もう一度お試しください。');}finally{setEditBusy(false);}
 });
-function summaryLine(t){const suffix=[];if(t.dueDate)suffix.push('期限'+toMD(t.dueDate)+(t.dueDate<dateStr()?'・期限超過':''));if(t.status==='waiting')suffix.push(t.waitingFor?'待ち先：'+oneLine(t.waitingFor):'保留（待ち先未入力）');if(age(t)>=2)suffix.push(age(t)+'日目');return '・'+oneLine(t.title)+(suffix.length?'（'+suffix.join('／')+'）':'');}
+function summaryLine(t){const suffix=[];if(t.startDate)suffix.push('期間'+toMD(t.startDate)+'〜'+(t.dueDate?toMD(t.dueDate):''));if(t.dueDate&&!t.startDate)suffix.push('期限'+toMD(t.dueDate)+(t.dueDate<dateStr()?'・期限超過':''));if(t.status==='waiting')suffix.push(t.waitingFor?'待ち先：'+oneLine(t.waitingFor):'保留（待ち先未入力）');if(age(t)>=2)suffix.push(age(t)+'日目');return '・'+oneLine(t.title)+(suffix.length?'（'+suffix.join('／')+'）':'');}
 function buildSummary(){
  const today=dateStr();
  const mine=tasks.filter(t=>t.assignee===me),done=mine.filter(t=>t.status==='done'&&isoDay(t.doneAt)===today).sort(sortTasks),unfinishedMine=mine.filter(unfinished).sort(sortTasks);
@@ -179,7 +180,7 @@ $('clearSamples').addEventListener('click',async()=>{
  if(!ready||samplesBusy)return;if(!samplesArm.press('samples'))return;samplesBusy=true;
  $('clearSamples').disabled=true;let failed=0;for(const t of tasks.filter(t=>t.isSample)){try{await db.doc('tasks/'+t.id).delete();}catch(e){failed++;}}toast(failed?'一部のサンプルを削除できませんでした。再度お試しください':'サンプルを削除しました');samplesBusy=false;syncControls();
 });
-function normalize(doc){const raw=doc.data()||{};return {...raw,_raw:raw,id:doc.id,title:String(raw.title||'（タイトルなし）'),content:String(raw.content||raw.title||''),status:COLUMNS.some(c=>c.key===raw.status)?raw.status:'todo',assignee:String(raw.assignee||'未設定'),projectTags:Array.isArray(raw.projectTags)?raw.projectTags.filter(x=>typeof x==='string'):[],taskType:raw.taskType==='routine'?'routine':'single',dueDate:isoDay(raw.dueDate)||null,logs:Array.isArray(raw.logs)?raw.logs.filter(l=>l&&typeof l.text==='string'):[],waitingFor:String(raw.waitingFor||''),cancelReason:String(raw.cancelReason||'')};}
+function normalize(doc){const raw=doc.data()||{};return {...raw,_raw:raw,id:doc.id,title:String(raw.title||'（タイトルなし）'),content:String(raw.content||raw.title||''),status:COLUMNS.some(c=>c.key===raw.status)?raw.status:'todo',assignee:String(raw.assignee||'未設定'),projectTags:Array.isArray(raw.projectTags)?raw.projectTags.filter(x=>typeof x==='string'):[],taskType:raw.taskType==='routine'?'routine':'single',dueDate:isoDay(raw.dueDate)||null,startDate:isoDay(raw.startDate)||null,logs:Array.isArray(raw.logs)?raw.logs.filter(l=>l&&typeof l.text==='string'):[],waitingFor:String(raw.waitingFor||''),cancelReason:String(raw.cancelReason||'')};}
 
 // siteMemos collection: {projectTag, text, date: YYYY-MM-DD,
 // author, createdAt: ISO timestamp}. No task id, status or task lifecycle coupling.

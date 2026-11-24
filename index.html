@@ -47,6 +47,7 @@
  <form id="qaForm"><div class="qa-row"><label for="qaTitle" class="sr-only">タスクのタイトル</label><input id="qaTitle" placeholder="例：ジムセレの記事を公開する" required autocomplete="off" maxlength="300"><button type="submit" class="btn primary" id="qaSubmit" disabled><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>追加</span></button></div>
  <div class="qa-bottom"><button type="button" class="link-btn qa-more" id="qaMoreToggle" aria-expanded="false" aria-controls="qaDetail">＋ 期限・案件・担当者などを指定</button><span class="qa-owner" id="qaOwner"></span></div>
  <div class="qa-detail" id="qaDetail" hidden><div class="field-grid">
+  <div class="field"><label for="qaStart">開始日 <small>任意・この日からボードに表示</small></label><input type="date" id="qaStart"></div>
   <div class="field"><label for="qaDue">期限 <small>任意</small></label><input type="date" id="qaDue"><div class="due-shortcuts"><button type="button" class="link-btn" data-due="0">今日</button><button type="button" class="link-btn" data-due="1">明日</button><button type="button" class="link-btn" data-due="">無期限</button></div></div>
   <div class="field"><label for="qaAssignee">担当者 <small>任意</small></label><input id="qaAssignee" maxlength="40" placeholder="空欄ならあなた" list="assignees"></div>
   <div class="field full"><label for="qaContent">内容メモ <small>任意</small></label><textarea id="qaContent" placeholder="補足があれば入力。空欄ならタイトルと同じ内容で保存します。"></textarea></div>
@@ -140,6 +141,7 @@
   <div class="field full"><label for="editStatus">ステータス</label><select id="editStatus" data-field="status"></select></div>
   <div class="field full" id="waitingField" hidden><label for="editWaiting">待ち先 <small>任意</small></label><input id="editWaiting" data-field="waitingFor" placeholder="例：村上さん返信待ち"></div>
   <div class="field full" id="cancelField" hidden><label for="editCancel">中止理由 <small>任意</small></label><textarea id="editCancel" data-field="cancelReason" placeholder="中止になった理由"></textarea></div>
+  <div class="field"><label for="editStart">開始日</label><input type="date" id="editStart" data-field="startDate"></div>
   <div class="field"><label for="editDue">期限</label><input type="date" id="editDue" data-field="dueDate"></div>
   <div class="field"><label for="editAssignee">担当者</label><input id="editAssignee" data-field="assignee" list="assignees" maxlength="40"></div>
   <div class="field full"><label for="editContent">内容メモ</label><textarea id="editContent" data-field="content" placeholder="空欄ならタイトルと同じ内容"></textarea></div>
@@ -160,6 +162,6 @@
 <script src="assets/workboard-core.js?v=20261005b"></script>
 <script src="assets/records-ui.js?v=20261005b"></script>
 <script src="assets/layout.js?v=20261005b"></script>
-<script src="assets/index-app.js?v=20261005b"></script>
+<script src="assets/index-app.js?v=20261124a"></script>
 </body>
 </html>
