@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- ?v= is a manual cache-buster — GitHub Pages caches these for 10 min (Cache-Control: max-age=600),
      so bump this value whenever any assets/*.css or assets/*.js file changes. -->
-<link rel="stylesheet" href="assets/index.css?v=20261005b">
+<link rel="stylesheet" href="assets/index.css?v=20261124c">
 <link rel="stylesheet" href="assets/records.css?v=20261005b">
 <link rel="stylesheet" href="assets/dashboard.css?v=20261005b">
 <link rel="stylesheet" href="assets/compact.css?v=20261005b">
@@ -45,11 +45,12 @@
 <section class="quickadd" aria-labelledby="qaHeading">
  <div class="qa-heading"><h2 id="qaHeading">今日やることを追加</h2><span>タイトルだけで登録できます</span><span id="qaDateHint" class="shared-label" hidden></span></div>
  <form id="qaForm"><div class="qa-row"><label for="qaTitle" class="sr-only">タスクのタイトル</label><input id="qaTitle" placeholder="例：ジムセレの記事を公開する" required autocomplete="off" maxlength="300"><button type="submit" class="btn primary" id="qaSubmit" disabled><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>追加</span></button></div>
- <div class="qa-bottom"><button type="button" class="link-btn qa-more" id="qaMoreToggle" aria-expanded="false" aria-controls="qaDetail">＋ 期限・案件・担当者などを指定</button><span class="qa-owner" id="qaOwner"></span></div>
+ <div class="qa-bottom"><button type="button" class="link-btn qa-more" id="qaMoreToggle" aria-expanded="false" aria-controls="qaDetail">＋ 期限・外注さん・案件などを指定</button><span class="qa-owner" id="qaOwner"></span></div>
  <div class="qa-detail" id="qaDetail" hidden><div class="field-grid">
-  <div class="field"><label for="qaStart">開始日 <small>任意・この日からボードに表示</small></label><input type="date" id="qaStart"></div>
-  <div class="field"><label for="qaDue">期限 <small>任意</small></label><input type="date" id="qaDue"><div class="due-shortcuts"><button type="button" class="link-btn" data-due="0">今日</button><button type="button" class="link-btn" data-due="1">明日</button><button type="button" class="link-btn" data-due="">無期限</button></div></div>
+  <div class="field"><label for="qaStart"><span id="qaStartLbl">開始日</span> <small>任意・この日からボードに表示</small></label><input type="date" id="qaStart"></div>
+  <div class="field"><label for="qaDue"><span id="qaDueLbl">期限</span> <small>任意</small></label><input type="date" id="qaDue"><div class="due-shortcuts"><button type="button" class="link-btn" data-due="0">今日</button><button type="button" class="link-btn" data-due="1">明日</button><button type="button" class="link-btn" data-due="">無期限</button></div></div>
   <div class="field"><label for="qaAssignee">担当者 <small>任意</small></label><input id="qaAssignee" maxlength="40" placeholder="空欄ならあなた" list="assignees"></div>
+  <div class="field"><label for="qaOutsourcer">外注さん <small>任意・外注への依頼なら名前を選ぶ</small></label><input id="qaOutsourcer" maxlength="40" placeholder="例：村上さん" list="outsourcers" autocomplete="off"><datalist id="outsourcers"></datalist></div>
   <div class="field full"><label for="qaContent">内容メモ <small>任意</small></label><textarea id="qaContent" placeholder="補足があれば入力。空欄ならタイトルと同じ内容で保存します。"></textarea></div>
   <fieldset class="field full"><legend>種類</legend><div class="chip-row" id="qaTypeRow"><button class="chip" type="button" data-type="single" aria-pressed="true">単発タスク</button><button class="chip" type="button" data-type="routine" aria-pressed="false">ルーティン業務</button></div></fieldset>
   <fieldset class="field full"><legend>案件タグ <small>複数選択可</small></legend><div class="chip-row" id="qaTagRow"></div></fieldset>
@@ -117,6 +118,7 @@
 </section>
 <section id="staffView" aria-labelledby="staffHeading" hidden>
  <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div></div>
+ <section class="staff-deadlines" aria-labelledby="staffDeadlinesHeading"><h3 id="staffDeadlinesHeading">依頼中の納期 <small>タスクボードで「外注さん」を入れたタスク（未完了のみ）</small></h3><div id="staffDeadlines"></div></section>
  <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
  <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
  <div class="lay-root" data-layout="staff" data-widths="1fr|1.2fr|220px">
@@ -141,9 +143,10 @@
   <div class="field full"><label for="editStatus">ステータス</label><select id="editStatus" data-field="status"></select></div>
   <div class="field full" id="waitingField" hidden><label for="editWaiting">待ち先 <small>任意</small></label><input id="editWaiting" data-field="waitingFor" placeholder="例：村上さん返信待ち"></div>
   <div class="field full" id="cancelField" hidden><label for="editCancel">中止理由 <small>任意</small></label><textarea id="editCancel" data-field="cancelReason" placeholder="中止になった理由"></textarea></div>
-  <div class="field"><label for="editStart">開始日</label><input type="date" id="editStart" data-field="startDate"></div>
-  <div class="field"><label for="editDue">期限</label><input type="date" id="editDue" data-field="dueDate"></div>
+  <div class="field"><label for="editStart"><span id="editStartLbl">開始日</span></label><input type="date" id="editStart" data-field="startDate"></div>
+  <div class="field"><label for="editDue"><span id="editDueLbl">期限</span></label><input type="date" id="editDue" data-field="dueDate"></div>
   <div class="field"><label for="editAssignee">担当者</label><input id="editAssignee" data-field="assignee" list="assignees" maxlength="40"></div>
+  <div class="field"><label for="editOutsourcer">外注さん</label><input id="editOutsourcer" data-field="outsourcer" list="outsourcers" maxlength="40" autocomplete="off"></div>
   <div class="field full"><label for="editContent">内容メモ</label><textarea id="editContent" data-field="content" placeholder="空欄ならタイトルと同じ内容"></textarea></div>
   <div class="field full"><label for="editType">種類</label><select id="editType" data-field="taskType"><option value="single">単発タスク</option><option value="routine">ルーティン業務</option></select></div>
   <fieldset class="field full"><legend>案件タグ <small>複数選択可</small></legend><div class="chip-row" id="editTagRow"></div></fieldset>
@@ -162,6 +165,6 @@
 <script src="assets/workboard-core.js?v=20261005b"></script>
 <script src="assets/records-ui.js?v=20261005b"></script>
 <script src="assets/layout.js?v=20261005b"></script>
-<script src="assets/index-app.js?v=20261124a"></script>
+<script src="assets/index-app.js?v=20261124c"></script>
 </body>
 </html>
