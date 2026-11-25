@@ -117,7 +117,7 @@
     try{
       await W.deleteProject(db,records.siteMemos,records.siteMemoComments,tag);
       delete seenActivity[tag];saveSeen();
-      currentProject=W.sortProjects(visibleProjects().filter(t=>t!==tag),projectActivity())[0]||'その他';closeRename();closeNoteCompose();render(true);
+      currentProject=W.sortProjects(visibleProjects().filter(t=>t!==tag),projectActivity())[0]||'SNS・その他';closeRename();closeNoteCompose();render(true);
     }catch(err){$('projectError').textContent='案件を削除できませんでした。もう一度お試しください。';$('projectError').hidden=false;}
     finally{projectBusy=false;status();syncDeleteProject();}
   });

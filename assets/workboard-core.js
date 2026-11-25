@@ -1,10 +1,13 @@
 (function (global) {
   'use strict';
   const W = global.Workboard = {};
-  W.TAGS = ['ジムセレ', '買取サファリ', '金融メディアサイト群', '自社サイト', '共通/インフラ', 'SNS', 'その他'];
+  W.TAGS = ['金融メディア', 'チケット買取', 'ジムセレ', '自社', '共通・インフラ', '物販', 'SNS・その他'];
+  // 2026-11-26 タグ再編：古いタグ名はデータを書き換えず、読み込み時に新しい名前へ読み替える。
+  W.TAG_ALIAS = {'金融メディアサイト群':'金融メディア', '買取サファリ':'チケット買取', '自社サイト':'自社', '共通/インフラ':'共通・インフラ', 'SNS':'SNS・その他', 'その他':'SNS・その他'};
+  W.tagAliasesOf = name => Object.keys(W.TAG_ALIAS).filter(k => W.TAG_ALIAS[k] === name);
   W.esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
-  W.canonicalProject = tag => tag === '共通・インフラ' ? '共通/インフラ' : String(tag || 'その他');
-  W.labelTag = tag => tag === '共通/インフラ' ? '共通・インフラ' : tag;
+  W.canonicalProject = tag => W.TAG_ALIAS[tag] || String(tag || 'SNS・その他');
+  W.labelTag = tag => W.TAG_ALIAS[tag] || tag;
   W.isoDay = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : '';
   W.dateStr = (date = new Date()) => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
   W.createdDay = timestamp => { const d = new Date(timestamp); return Number.isNaN(d.getTime()) ? '' : W.dateStr(d); };
@@ -105,7 +108,7 @@
     return {...Object.fromEntries(W.SITE_INFO_FIELDS.map(k => [k, String(raw[k] || '')])), _raw:raw, id:doc.id, name:W.canonicalProject(raw.name), removed:raw.removed === true, infoUpdatedAt:String(raw.infoUpdatedAt || '')};
   };
   W.visibleProjects = (names, siteProjects) => {
-    const removed = new Set(siteProjects.filter(p => p.removed).map(p => p.name));
+    const removed = new Set(siteProjects.filter(p => p.removed && !W.TAG_ALIAS[p._raw.name]).map(p => p.name));
     const added = siteProjects.filter(p => !p.removed).map(p => p.name);
     return [...new Set(names.concat(added).map(W.canonicalProject))].filter(name => !removed.has(name));
   };

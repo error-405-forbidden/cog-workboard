@@ -188,7 +188,8 @@
     // サイト情報 pane for one project. Its document may not exist yet (built-in or
     // memo-only names), so 編集 first creates it and then opens the editor.
     function siteInfo(name) {
-      const id = W.projectKey(name), record = getRecord('siteProjects', id), definition = definitions.siteinfo;
+      const id = W.projectKey(name), definition = definitions.siteinfo;
+      const record = getRecord('siteProjects', id) || W.tagAliasesOf(name).map(old => getRecord('siteProjects', W.projectKey(old))).find(r => r && W.SITE_INFO_FIELDS.some(k => r[k]));
       if (editors.has(key('siteinfo', id))) return '<div class="staff-profile site-info">'+form('siteinfo', id)+'</div>';
       const disabled = !canWrite('siteProjects') || creating.has(id);
       const editBtn = '<button type="button" data-wb-action="siteinfo-edit" data-kind="siteinfo" data-id="'+E(id)+'" data-name="'+E(name)+'" data-focus-key="'+E('edit:siteinfo:'+id)+'"'+(disabled?' disabled':'')+'>編集</button>';
