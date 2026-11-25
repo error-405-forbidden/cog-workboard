@@ -118,7 +118,7 @@
 </section>
 <section id="staffView" aria-labelledby="staffHeading" hidden>
  <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div></div>
- <section class="staff-deadlines" aria-labelledby="staffGanttHeading"><div class="gantt-head"><h3 id="staffGanttHeading">外注さんの予定 <small>バー＝作業期間（未入力なら登録日〜納期）　▼＝納期　◆＝連絡日　クリックで詳細</small></h3><div class="gantt-nav"><button type="button" class="step" id="ganttPrev" aria-label="前の期間">‹</button><button type="button" class="link-btn" id="ganttToday">今日</button><button type="button" class="step" id="ganttNext" aria-label="次の期間">›</button></div></div><form id="outForm" class="out-form" autocomplete="off"><span class="out-form-label">外注さんに依頼を追加</span><label class="sr-only" for="outName">外注さん</label><input id="outName" list="outsourcers" maxlength="40" placeholder="外注さん（例：村上さん）" required><label class="sr-only" for="outTitle">依頼内容</label><input id="outTitle" maxlength="300" placeholder="依頼内容（例：キャンペーン更新）" required><label class="out-date">作業期間<input type="date" id="outWorkStart"></label><label class="out-date">〜<input type="date" id="outWorkEnd"></label><label class="out-date">納期<input type="date" id="outDue"></label><label class="out-date out-contact"><input type="checkbox" id="outContactOn">連絡日<input type="date" id="outContact" data-contact-for="outContactOn" disabled></label><button type="submit" class="btn primary" id="outSubmit">追加</button></form><p class="form-error" id="outError" role="alert" hidden></p><datalist id="outsourcers"></datalist><div class="gantt-scroll" id="staffGantt"></div></section>
+ <section class="staff-deadlines" aria-labelledby="staffGanttHeading"><div class="gantt-head"><h3 id="staffGanttHeading">外注さんの予定 <small>バー＝作業開始〜納期（開始が未入力なら登録日から）　◆＝連絡日　クリックで詳細</small></h3><div class="gantt-nav"><button type="button" class="step" id="ganttPrev" aria-label="前の期間">‹</button><button type="button" class="link-btn" id="ganttToday">今日</button><button type="button" class="step" id="ganttNext" aria-label="次の期間">›</button></div></div><form id="outForm" class="out-form" autocomplete="off"><span class="out-form-label">外注さんに依頼を追加</span><label class="sr-only" for="outName">外注さん</label><input id="outName" list="outsourcers" maxlength="40" placeholder="外注さん（例：村上さん）" required><label class="sr-only" for="outTitle">依頼内容</label><input id="outTitle" maxlength="300" placeholder="依頼内容（例：キャンペーン更新）" required><label class="out-date">作業開始<input type="date" id="outWorkStart"></label><label class="out-date">〜 納期<input type="date" id="outDue"></label><label class="out-date out-contact"><input type="checkbox" id="outContactOn">連絡日<input type="date" id="outContact" data-contact-for="outContactOn" disabled></label><button type="submit" class="btn primary" id="outSubmit">追加</button></form><p class="form-error" id="outError" role="alert" hidden></p><datalist id="outsourcers"></datalist><div class="gantt-scroll" id="staffGantt"></div></section>
  <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
  <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
  <div class="lay-root" data-layout="staff" data-widths="1fr|1.2fr|220px">
@@ -144,8 +144,8 @@
   <div class="field full" id="waitingField" hidden><label for="editWaiting">待ち先 <small>任意</small></label><input id="editWaiting" data-field="waitingFor" placeholder="例：村上さん返信待ち"></div>
   <div class="field full" id="cancelField" hidden><label for="editCancel">中止理由 <small>任意</small></label><textarea id="editCancel" data-field="cancelReason" placeholder="中止になった理由"></textarea></div>
   <div class="field own-only"><label for="editStart"><span id="editStartLbl">開始日</span></label><input type="date" id="editStart" data-field="startDate"></div>
+  <div class="field out-only" hidden><label for="editWorkStart">作業開始</label><input type="date" id="editWorkStart" data-field="workStart"></div>
   <div class="field"><label for="editDue"><span id="editDueLbl">期限</span></label><input type="date" id="editDue" data-field="dueDate"></div>
-  <div class="field out-only" hidden><label for="editWorkStart">作業期間</label><div class="date-range"><input type="date" id="editWorkStart" data-field="workStart"><span>〜</span><input type="date" id="editWorkEnd" data-field="workEnd" aria-label="作業終了日"></div></div>
   <div class="field out-only" hidden><label class="check-label"><input type="checkbox" id="editContactOn">連絡日を設定する</label><input type="date" id="editContact" data-field="contactDate" data-contact-for="editContactOn" disabled aria-label="連絡日"></div>
   <div class="field"><label for="editAssignee">担当者</label><input id="editAssignee" data-field="assignee" list="assignees" maxlength="40"></div>
   <div class="field"><label for="editOutsourcer">外注さん</label><input id="editOutsourcer" data-field="outsourcer" list="outsourcers" maxlength="40" autocomplete="off"></div>
@@ -167,6 +167,6 @@
 <script src="assets/workboard-core.js?v=20261126a"></script>
 <script src="assets/records-ui.js?v=20261126a"></script>
 <script src="assets/layout.js?v=20261005b"></script>
-<script src="assets/index-app.js?v=20261126a"></script>
+<script src="assets/index-app.js?v=20261126b"></script>
 </body>
 </html>
