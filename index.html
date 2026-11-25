@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- ?v= is a manual cache-buster — GitHub Pages caches these for 10 min (Cache-Control: max-age=600),
      so bump this value whenever any assets/*.css or assets/*.js file changes. -->
-<link rel="stylesheet" href="assets/index.css?v=20261124d">
+<link rel="stylesheet" href="assets/index.css?v=20261124e">
 <link rel="stylesheet" href="assets/records.css?v=20261005b">
 <link rel="stylesheet" href="assets/dashboard.css?v=20261005b">
 <link rel="stylesheet" href="assets/compact.css?v=20261005b">
@@ -45,12 +45,11 @@
 <section class="quickadd" aria-labelledby="qaHeading">
  <div class="qa-heading"><h2 id="qaHeading">今日やることを追加</h2><span>タイトルだけで登録できます</span><span id="qaDateHint" class="shared-label" hidden></span></div>
  <form id="qaForm"><div class="qa-row"><label for="qaTitle" class="sr-only">タスクのタイトル</label><input id="qaTitle" placeholder="例：ジムセレの記事を公開する" required autocomplete="off" maxlength="300"><button type="submit" class="btn primary" id="qaSubmit" disabled><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>追加</span></button></div>
- <div class="qa-bottom"><button type="button" class="link-btn qa-more" id="qaMoreToggle" aria-expanded="false" aria-controls="qaDetail">＋ 期限・外注さん・案件などを指定</button><span class="qa-owner" id="qaOwner"></span></div>
+ <div class="qa-bottom"><button type="button" class="link-btn qa-more" id="qaMoreToggle" aria-expanded="false" aria-controls="qaDetail">＋ 期限・案件・担当者などを指定</button><span class="qa-owner" id="qaOwner"></span></div>
  <div class="qa-detail" id="qaDetail" hidden><div class="field-grid">
   <div class="field"><label for="qaStart"><span id="qaStartLbl">開始日</span> <small>任意・この日からボードに表示</small></label><input type="date" id="qaStart"></div>
   <div class="field"><label for="qaDue"><span id="qaDueLbl">期限</span> <small>任意</small></label><input type="date" id="qaDue"><div class="due-shortcuts"><button type="button" class="link-btn" data-due="0">今日</button><button type="button" class="link-btn" data-due="1">明日</button><button type="button" class="link-btn" data-due="">無期限</button></div></div>
   <div class="field"><label for="qaAssignee">担当者 <small>任意</small></label><input id="qaAssignee" maxlength="40" placeholder="空欄ならあなた" list="assignees"></div>
-  <div class="field"><label for="qaOutsourcer">外注さん <small>任意・外注への依頼なら名前を選ぶ</small></label><input id="qaOutsourcer" maxlength="40" placeholder="例：村上さん" list="outsourcers" autocomplete="off"><datalist id="outsourcers"></datalist></div>
   <div class="field full"><label for="qaContent">内容メモ <small>任意</small></label><textarea id="qaContent" placeholder="補足があれば入力。空欄ならタイトルと同じ内容で保存します。"></textarea></div>
   <fieldset class="field full"><legend>種類</legend><div class="chip-row" id="qaTypeRow"><button class="chip" type="button" data-type="single" aria-pressed="true">単発タスク</button><button class="chip" type="button" data-type="routine" aria-pressed="false">ルーティン業務</button></div></fieldset>
   <fieldset class="field full"><legend>案件タグ <small>複数選択可</small></legend><div class="chip-row" id="qaTagRow"></div></fieldset>
@@ -59,6 +58,7 @@
 </div>
 <div class="lay-box" data-box="board" data-col="0" data-title="タスクボード">
 <div class="board-toolbar"><div class="board-title"><h2 id="boardTitle">自分のタスク</h2><div class="counts" id="counts"><span>未完了 <strong>—</strong></span><span>本日完了 <strong>—</strong></span></div></div><div class="date-nav" role="group" aria-label="表示する日付"><button type="button" class="step" id="boardDatePrev" aria-label="前の日">‹</button><label for="boardDate" class="sr-only">表示する日付</label><input type="date" id="boardDate"><button type="button" class="step" id="boardDateNext" aria-label="次の日">›</button><button type="button" class="link-btn" id="boardDateToday">今日</button></div><div class="scope-toggle" role="group" aria-label="表示範囲"><button id="scopeMine" type="button" aria-pressed="true">自分</button><button id="scopeAll" type="button" aria-pressed="false">全員</button></div></div>
+<div id="contactStrip" class="contact-strip" hidden></div>
 <div id="sampleNote" class="sample-note" hidden><span>サンプルタスクが含まれています。</span><button type="button" class="btn quiet danger" id="clearSamples">サンプルを削除</button></div>
 <div class="mobile-tabs" id="mobileTabs" role="group" aria-label="表示するステータス"></div>
 <div class="board-scroll"><div class="board" id="board" aria-label="タスクボード" aria-busy="true"><div class="board-state"><span class="spinner" aria-hidden="true"></span><strong>タスクを読み込み中</strong><p>初回の接続には10秒ほどかかることがあります。</p></div></div></div>
@@ -118,7 +118,7 @@
 </section>
 <section id="staffView" aria-labelledby="staffHeading" hidden>
  <div class="notes-intro"><div><h2 id="staffHeading">外注さん</h2><p>外注スタッフのプロフィール・依頼している内容・ログを管理します。</p></div></div>
- <section class="staff-deadlines" aria-labelledby="staffGanttHeading"><div class="gantt-head"><h3 id="staffGanttHeading">外注さんの予定 <small>バー＝登録日〜納期　◆＝連絡日　クリックで詳細</small></h3><div class="gantt-nav"><button type="button" class="step" id="ganttPrev" aria-label="前の期間">‹</button><button type="button" class="link-btn" id="ganttToday">今日</button><button type="button" class="step" id="ganttNext" aria-label="次の期間">›</button></div></div><div class="gantt-scroll" id="staffGantt"></div></section>
+ <section class="staff-deadlines" aria-labelledby="staffGanttHeading"><div class="gantt-head"><h3 id="staffGanttHeading">外注さんの予定 <small>バー＝登録日〜納期　◆＝連絡日　クリックで詳細</small></h3><div class="gantt-nav"><button type="button" class="step" id="ganttPrev" aria-label="前の期間">‹</button><button type="button" class="link-btn" id="ganttToday">今日</button><button type="button" class="step" id="ganttNext" aria-label="次の期間">›</button></div></div><form id="outForm" class="out-form" autocomplete="off"><span class="out-form-label">外注さんに依頼を追加</span><label class="sr-only" for="outName">外注さん</label><input id="outName" list="outsourcers" maxlength="40" placeholder="外注さん（例：村上さん）" required><label class="sr-only" for="outTitle">依頼内容</label><input id="outTitle" maxlength="300" placeholder="依頼内容（例：キャンペーン更新）" required><label class="out-date">連絡日<input type="date" id="outContact"></label><label class="out-date">納期<input type="date" id="outDue"></label><button type="submit" class="btn primary" id="outSubmit">追加</button></form><p class="form-error" id="outError" role="alert" hidden></p><datalist id="outsourcers"></datalist><div class="gantt-scroll" id="staffGantt"></div></section>
  <div class="notes-status" id="staffStatus" role="status"><span id="staffStatusText">読み込み中…</span></div>
  <div class="notes-mobile-picker"><label for="staffSelect" class="sr-only">外注さんを選択</label><select id="staffSelect"></select><button type="button" id="staffAddMobile" class="mobile-staff-add" aria-label="外注さんを追加">＋</button></div>
  <div class="lay-root" data-layout="staff" data-widths="1fr|1.2fr|220px">
@@ -165,6 +165,6 @@
 <script src="assets/workboard-core.js?v=20261005b"></script>
 <script src="assets/records-ui.js?v=20261005b"></script>
 <script src="assets/layout.js?v=20261005b"></script>
-<script src="assets/index-app.js?v=20261124d"></script>
+<script src="assets/index-app.js?v=20261124e"></script>
 </body>
 </html>

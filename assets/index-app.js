@@ -60,17 +60,16 @@ $('boardDate').addEventListener('change',()=>setBoardDate($('boardDate').value))
 $('boardDatePrev').addEventListener('click',()=>shiftBoardDate(-1));
 $('boardDateNext').addEventListener('click',()=>shiftBoardDate(1));
 $('boardDateToday').addEventListener('click',()=>setBoardDate(dateStr()));
-$('qaMoreToggle').addEventListener('click',()=>{const open=$('qaDetail').hidden;$('qaDetail').hidden=!open;$('qaMoreToggle').setAttribute('aria-expanded',String(open));$('qaMoreToggle').textContent=open?'− 詳細を閉じる':'＋ 期限・外注さん・案件などを指定';});
+$('qaMoreToggle').addEventListener('click',()=>{const open=$('qaDetail').hidden;$('qaDetail').hidden=!open;$('qaMoreToggle').setAttribute('aria-expanded',String(open));$('qaMoreToggle').textContent=open?'− 詳細を閉じる':'＋ 期限・案件・担当者などを指定';});
 document.querySelectorAll('[data-due]').forEach(b=>b.addEventListener('click',()=>{const n=b.dataset.due;if(n==='')$('qaDue').value='';else{const d=new Date();d.setDate(d.getDate()+Number(n));$('qaDue').value=dateStr(d);}}));
 $('qaTypeRow').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{qaType=b.dataset.type;$('qaTypeRow').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 function setFormDisabled(form,disabled){form.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=disabled);}
 $('qaTitle').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.isComposing)e.preventDefault();});
-$('qaForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready||qaBusy)return;if(!me){$('meInput').focus();return;}const title=$('qaTitle').value.trim();if(!title)return;if($('qaStart').value&&$('qaDue').value&&$('qaStart').value>$('qaDue').value){errorAt('qaError','開始日（連絡日）が期限（納期）より後になっています。日付を確認してください。');return;}const assignee=$('qaAssignee').value.trim()||me;const data={title,content:$('qaContent').value.trim()||title,status:'todo',waitingFor:'',cancelReason:'',assignee,projectTags:qaTags.slice(),taskType:qaType,startDate:$('qaStart').value||null,dueDate:$('qaDue').value||null,outsourcer:$('qaOutsourcer').value.trim(),createdAt:boardDate,updatedAt:boardDate,doneAt:null,logs:[],isSample:false};qaBusy=true;setFormDisabled($('qaForm'),true);$('qaSubmit').querySelector('span').textContent='保存中';errorAt('qaError','');try{await db.collection('tasks').add(data);$('qaForm').reset();setOutLabels('qa',false);qaTags=[];qaType='single';renderTags('qaTagRow',qaTags);$('qaTypeRow').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type==='single')));$('qaDetail').hidden=true;$('qaMoreToggle').setAttribute('aria-expanded','false');$('qaMoreToggle').textContent='＋ 期限・外注さん・案件などを指定';mobileStatus='todo';renderBoard();const dateNote=boardDate!==dateStr()?'（'+toMD(boardDate)+'）':'';toast((assignee===me?'タスクを追加しました':assignee+'さんのタスクとして追加しました（全員表示で確認）')+dateNote);}catch(err){errorAt('qaError','登録できませんでした。入力内容は残っています。接続を確認して、もう一度追加してください。');}finally{qaBusy=false;setFormDisabled($('qaForm'),false);$('qaSubmit').querySelector('span').textContent='追加';syncControls();$('qaTitle').focus();}});
+$('qaForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready||qaBusy)return;if(!me){$('meInput').focus();return;}const title=$('qaTitle').value.trim();if(!title)return;if($('qaStart').value&&$('qaDue').value&&$('qaStart').value>$('qaDue').value){errorAt('qaError','開始日（連絡日）が期限（納期）より後になっています。日付を確認してください。');return;}const assignee=$('qaAssignee').value.trim()||me;const data={title,content:$('qaContent').value.trim()||title,status:'todo',waitingFor:'',cancelReason:'',assignee,projectTags:qaTags.slice(),taskType:qaType,startDate:$('qaStart').value||null,dueDate:$('qaDue').value||null,createdAt:boardDate,updatedAt:boardDate,doneAt:null,logs:[],isSample:false};qaBusy=true;setFormDisabled($('qaForm'),true);$('qaSubmit').querySelector('span').textContent='保存中';errorAt('qaError','');try{await db.collection('tasks').add(data);$('qaForm').reset();qaTags=[];qaType='single';renderTags('qaTagRow',qaTags);$('qaTypeRow').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type==='single')));$('qaDetail').hidden=true;$('qaMoreToggle').setAttribute('aria-expanded','false');$('qaMoreToggle').textContent='＋ 期限・案件・担当者などを指定';mobileStatus='todo';renderBoard();const dateNote=boardDate!==dateStr()?'（'+toMD(boardDate)+'）':'';toast((assignee===me?'タスクを追加しました':assignee+'さんのタスクとして追加しました（全員表示で確認）')+dateNote);}catch(err){errorAt('qaError','登録できませんでした。入力内容は残っています。接続を確認して、もう一度追加してください。');}finally{qaBusy=false;setFormDisabled($('qaForm'),false);$('qaSubmit').querySelector('span').textContent='追加';syncControls();$('qaTitle').focus();}});
 // Outsourcer tasks reuse the same two dates: startDate = the day we should contact
 // them (the task appears on the board that day), dueDate = their delivery deadline.
 function setOutLabels(prefix,on){$(prefix+'StartLbl').textContent=on?'連絡日':'開始日';$(prefix+'DueLbl').textContent=on?'納期':'期限';}
 function fillOutsourcers(){const names=[...new Set(staffRecords.staffProfiles.map(p=>p.name).concat(tasks.map(t=>t.outsourcer)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));$('outsourcers').innerHTML=names.map(n=>'<option value="'+esc(n)+'"></option>').join('');}
-$('qaOutsourcer').addEventListener('input',()=>setOutLabels('qa',!!$('qaOutsourcer').value.trim()));
 $('editOutsourcer').addEventListener('input',()=>setOutLabels('edit',!!$('editOutsourcer').value.trim()));
 // 外注さん画面の上部：外注タスクの横向きカレンダー（ガントチャート）。
 // 1行＝外注さん1人。バー＝タスク登録日〜納期、◆＝連絡日。依頼が重なる人は段を分ける。
@@ -96,6 +95,15 @@ $('staffGantt').addEventListener('click',e=>{const b=e.target.closest('[data-tas
 $('ganttPrev').addEventListener('click',()=>{ganttFrom=addDays(ganttFrom||addDays(dateStr(),-7),-28);renderStaffGantt();});
 $('ganttNext').addEventListener('click',()=>{ganttFrom=addDays(ganttFrom||addDays(dateStr(),-7),28);renderStaffGantt();});
 $('ganttToday').addEventListener('click',()=>{ganttFrom=null;renderStaffGantt();});
+// タスクボード上の1行：連絡日を迎えた外注タスク（見ている日付基準）。カードとしては出さない。
+function renderContactStrip(){const box=$('contactStrip');const list=tasks.filter(t=>t.outsourcer&&unfinished(t)&&t.startDate&&t.startDate<=boardDate).sort((a,b)=>a.startDate.localeCompare(b.startDate));
+ box.hidden=!list.length;if(!list.length){box.replaceChildren();return;}
+ box.innerHTML='<span class="contact-strip-label">要連絡</span>';list.forEach(t=>{const b=document.createElement('button');b.type='button';b.className='contact-item'+(t.startDate<boardDate?' late':'');b.textContent=t.outsourcer+'（'+t.title+(t.startDate<boardDate?'・'+toMD(t.startDate)+'から':'')+'）';b.addEventListener('click',()=>openEditor(t.id));box.append(b);});}
+$('outForm').addEventListener('submit',async e=>{e.preventDefault();if(!ready)return;if(!me){errorAt('outError','先に画面右上で自分の名前を設定してください。');return;}
+ const name=$('outName').value.trim(),title=$('outTitle').value.trim(),contact=$('outContact').value,due=$('outDue').value;if(!name||!title)return;
+ if(contact&&due&&contact>due){errorAt('outError','連絡日が納期より後になっています。日付を確認してください。');return;}
+ const today=dateStr();const data={title,content:title,status:'todo',waitingFor:'',cancelReason:'',assignee:me,projectTags:[],taskType:'single',startDate:contact||null,dueDate:due||null,outsourcer:name,createdAt:today,updatedAt:today,doneAt:null,logs:[],isSample:false};
+ setFormDisabled($('outForm'),true);errorAt('outError','');try{await db.collection('tasks').add(data);$('outTitle').value='';$('outContact').value='';$('outDue').value='';toast(name+'への依頼を追加しました');}catch(err){errorAt('outError','追加できませんでした。入力内容は残っています。もう一度お試しください。');}finally{setFormDisabled($('outForm'),false);$('outTitle').focus();}});
 function sortTasks(a,b){const terminal=!unfinished(a)&&!unfinished(b);if(terminal)return String(b.doneAt||b.updatedAt||'').localeCompare(String(a.doneAt||a.updatedAt||''));return String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))||String(a.createdAt||'').localeCompare(String(b.createdAt||''));}
 // Day view: an unfinished task with a due date stays off the board until that day
 // arrives (many tasks are only actionable on a specific date), then carries forward
@@ -112,10 +120,12 @@ function renderBoard(){
  $('boardTitle').textContent=((scope==='mine'&&me)?'自分のタスク':'全員のタスク')+'・'+dateLabel;
  if(!hasData)return;
  // Name not set yet: fall back to showing everyone's tasks instead of hiding the board.
- const scoped=(scope==='mine'&&me)?tasks.filter(t=>t.assignee===me):tasks;
+ const own=tasks.filter(t=>!t.outsourcer);
+ const scoped=(scope==='mine'&&me)?own.filter(t=>t.assignee===me):own;
+ renderContactStrip();
  const visible=scoped.filter(t=>inDateView(t,boardDate));
  $('counts').innerHTML='<span>未完了 <strong>'+visible.filter(unfinished).length+'</strong></span><span>'+dateLabel+'完了 <strong>'+visible.filter(t=>t.status==='done'&&isoDay(t.doneAt)===boardDate).length+'</strong></span>';
- $('sampleNote').hidden=!tasks.some(t=>t.isSample);
+ $('sampleNote').hidden=!own.some(t=>t.isSample);
  $('mobileTabs').replaceChildren();$('board').replaceChildren();$('board').setAttribute('aria-busy','false');
  COLUMNS.forEach(col=>{
   const list=visible.filter(t=>t.status===col.key).sort(sortTasks);
@@ -192,7 +202,7 @@ $('deleteTask').addEventListener('click',async()=>{
 function summaryLine(t){const suffix=[];if(t.outsourcer){suffix.push('外注：'+t.outsourcer);if(t.dueDate)suffix.push('納期'+toMD(t.dueDate)+(t.dueDate<dateStr()?'・納期超過':''));}else if(t.startDate)suffix.push('期間'+toMD(t.startDate)+'〜'+(t.dueDate?toMD(t.dueDate):''));if(t.dueDate&&!t.startDate&&!t.outsourcer)suffix.push('期限'+toMD(t.dueDate)+(t.dueDate<dateStr()?'・期限超過':''));if(t.status==='waiting')suffix.push(t.waitingFor?'待ち先：'+oneLine(t.waitingFor):'保留（待ち先未入力）');if(age(t)>=2)suffix.push(age(t)+'日目');return '・'+oneLine(t.title)+(suffix.length?'（'+suffix.join('／')+'）':'');}
 function buildSummary(){
  const today=dateStr();
- const mine=tasks.filter(t=>t.assignee===me),done=mine.filter(t=>t.status==='done'&&isoDay(t.doneAt)===today).sort(sortTasks),unfinishedMine=mine.filter(unfinished).sort(sortTasks);
+ const mine=tasks.filter(t=>t.assignee===me&&!t.outsourcer),done=mine.filter(t=>t.status==='done'&&isoDay(t.doneAt)===today).sort(sortTasks),unfinishedMine=mine.filter(unfinished).sort(sortTasks);
  // Same rule the board itself uses per day (inDateView): a future due date, or — for a
  // task with none — a future createdAt, means it isn't actionable yet. Reusing it here
  // keeps 残タスク in sync with what's actually showing on today's board.
