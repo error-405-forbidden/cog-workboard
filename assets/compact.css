@@ -162,3 +162,46 @@ dialog .sheet-foot{padding:10px 16px}
    サイト情報 / 外注さんプロフィールの項目名, memo dates, comment and log dates */
 .staff-section-label,.project-note-head time,.comment-head>span:not(.row-actions){display:inline-block;background:#34506e;color:#fff;font-size:12px;line-height:1.5;padding:2px 9px;border-radius:4px;margin-bottom:8px;letter-spacing:.04em}
 .project-note-head time,.comment-head>span:not(.row-actions){margin-bottom:0;font-weight:700;align-self:center}
+
+/* スマホ表示の整理（2026-11-27）：重複見出し・説明文を減らし、ヘッダーとフォームを詰めすぎず並べ直す */
+@media(max-width:640px){
+ .topbar{padding:12px 0 14px;gap:10px;min-height:0}
+ .identity{flex:1 1 170px;min-width:0}
+ .identity label{display:none}
+ .identity input{flex:1;width:auto;min-width:0;min-height:38px;padding:6px 10px}
+ .identity .btn{min-height:38px;padding:6px 12px;font-size:13px}
+ .me-avatar{width:28px;height:28px}
+ .top-summary{min-height:38px;padding:6px 12px}
+ #logoutBtn{order:5;border:0;background:transparent;box-shadow:none;min-height:38px;padding:0 4px;font-size:12px;font-weight:400;color:var(--muted);text-decoration:underline}
+ .view-nav{gap:0;margin-top:8px}
+ .view-nav button{flex:1;min-height:44px;padding:10px 4px;font-size:14px;white-space:nowrap}
+ /* 重複する見出し・補足を隠す（箱の見出しバーと同じ内容） */
+ #qaHeading,.qa-heading>span:not(.shared-label),.qa-owner,.staff-log-heading,.board-foot,.notes-intro p{display:none}
+ .qa-heading{margin-bottom:0}
+ .quickadd{padding:14px}
+ .notes-intro{margin:14px 0 10px}
+ .notes-intro h2{font-size:17px}
+ .lay-box{margin-bottom:18px}
+ .lay-bar{padding:0 2px 6px}
+ /* 外注さん：予定の説明は小さく、追加フォームは2列のグリッドに */
+ .staff-deadlines{padding:12px}
+ .gantt-head h3 small{display:block;margin:4px 0 0;line-height:1.5}
+ .out-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .out-form>*{min-width:0}
+ .out-form-label,#outName,#outTitle,.out-contact,#outSubmit{grid-column:1/-1}
+ #outName,#outTitle{width:100%}
+ .out-date{flex-direction:column;align-items:stretch;gap:3px}
+ .out-date input[type=date]{width:100%}
+ .out-contact{flex-direction:row;align-items:center;gap:6px}
+ .out-contact input[type=date]{flex:1}
+ #outSubmit{width:100%}
+ .g-name{flex-basis:84px;width:84px;font-size:12px}
+ .lay-root{align-items:stretch}
+ /* サイト情報：項目名と値を横並びにして縦の長さを半分以下に */
+ .site-info .staff-name{font-size:15px}
+ .site-info .staff-section{display:flex;align-items:baseline;gap:10px;padding:7px 0;margin:0}
+ .site-info .staff-section-label{flex:0 0 auto;margin:0}
+ .site-info .project-note-text{margin:0;min-width:0;overflow-wrap:anywhere}
+ #noteForm>h3{display:none}
+ #staffLogActions button{background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:4px 12px;min-height:32px;font-size:13px}
+}
