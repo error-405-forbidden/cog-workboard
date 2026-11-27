@@ -205,3 +205,17 @@ dialog .sheet-foot{padding:10px 16px}
  #noteForm>h3{display:none}
  #staffLogActions button{background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:4px 12px;min-height:32px;font-size:13px}
 }
+/* スマホ：枠（パネル）の内側余白をなくしてフラットに。その分、区切り同士の間隔を広げる（2026-11-27） */
+@media(max-width:640px){
+ .quickadd,.staff-deadlines,.staff-profile,.note-compose,.column{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;border-radius:0}
+ .col-head{padding:0 0 10px;border-top:0;border-bottom:1px solid var(--line);border-radius:0}
+ .col-body{padding:12px 0 0}
+ .lay-box{margin-bottom:0;padding:22px 0;border-top:1px solid var(--line)}
+ .lay-box:first-child{border-top:0;padding-top:10px}
+ .lay-bar{padding:0 0 12px}
+ .lay-root{gap:0;margin-top:6px}
+ .staff-deadlines{margin-bottom:22px;padding-bottom:22px!important;border-bottom:1px solid var(--line)!important}
+ .site-info .staff-name{display:none}
+ .site-info .staff-name-row{justify-content:flex-end;margin-bottom:0}
+ .notes-intro{margin:18px 0 14px}
+}
